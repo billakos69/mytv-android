@@ -36,6 +36,7 @@ h3{margin:14px 0 4px;font-size:15px}
 .bars{position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:center;background:linear-gradient(90deg,#c0c0c0 0 14.28%,#c0c000 0 28.56%,#00c0c0 0 42.84%,#00c000 0 57.12%,#c000c0 0 71.4%,#c00000 0 85.68%,#0000c0 0)}.bars b{background:#000;color:#fff;padding:8px 14px;margin-bottom:12%}
 .tt{background:#000;color:#3f3;font:16px/1.4 monospace;padding:14px;border-radius:10px;white-space:pre-wrap}
 .atv .xb{display:none!important}
+#dbg{position:fixed;top:8px;left:8px;z-index:90;background:rgba(0,0,0,.85);color:#3f3;font:14px/1.3 monospace;padding:8px;border-radius:6px;pointer-events:none;margin:0}
 .chs button{margin:0 6px 6px 0}
 </style></head><body>
 <header><b>📺 Η Τηλεόρασή μου</b>
@@ -107,6 +108,7 @@ console.log(seen.size+' αντικείμενα');try{copy(out)}catch(e){}console
  <div class="row"><button class="b" id="im">Εισαγωγή (προσθήκη)</button><button class="b" id="ir">Εισαγωγή (αντικατάσταση όλων)</button></div></div>
 </section>
 </main>
+<pre id="dbg" class="hide"></pre>
 <div id="dlg" class="hide"><div class="card" id="dbox"></div></div>
 <script>
 const $=s=>document.querySelector(s);
@@ -202,6 +204,7 @@ function osd(t,ms){const o=$('#osd');o.textContent=t;o.style.display='block';cle
 function go(i){const n=S.channels.length;if(!n)return;i=((i%n)+n)%n;chId=S.channels[i].id;playing='';snow(450);chBtns();tune(true);osd((i+1)+' · '+S.channels[i].name+'\n'+info(S.channels[i]),5000)}
 function av(){const v=$('#tv video');if(v){v.volume=VOL;v.muted=MUTE}}
 function act(a){
+ if(a==='cp'||a==='cm'){if(Date.now()-(act.t||0)<400)return;act.t=Date.now()}
  if(a==='cp')go(idx()+1);else if(a==='cm')go(idx()-1);
  else if(a==='mu'){MUTE=!MUTE;av();osd(MUTE?'🔇 Σίγαση':'🔊 '+Math.round(VOL*100)+'%')}
  else if(a==='vp'||a==='vm'){VOL=Math.min(1,Math.max(0,VOL+(a==='vp'?.1:-.1)));MUTE=false;av();osd('🔊 '+Math.round(VOL*100)+'%')}
@@ -210,7 +213,7 @@ document.querySelectorAll('#rc button').forEach(b=>b.onclick=()=>act(b.dataset.a
 let buf='',bt;
 function dig(d){buf=(buf+d).slice(-2);osd('CH '+buf);clearTimeout(bt);bt=setTimeout(()=>{const n=parseInt(buf);buf='';if(n>=1&&n<=S.channels.length)go(n-1);else osd('Δεν υπάρχει κανάλι')},1200)}
 for(let d=1;d<=10;d++)$('#np').append(el('button',{class:'b s',on:()=>dig(d%10)},String(d%10)));
-document.addEventListener('keydown',e=>{if($('#live').classList.contains('hide')||/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;
+document.addEventListener('keydown',e=>{if($('#live').classList.contains('hide')||!$('#dlg').classList.contains('hide')||/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;
  const k=e.key;if(k==='ArrowUp'||k==='PageUp'||k==='ChannelUp')act('cp');else if(k==='ArrowDown'||k==='PageDown'||k==='ChannelDown')act('cm');
  else if(k==='ArrowRight')act('vp');else if(k==='ArrowLeft')act('vm');else if(k==='m'||k==='M')act('mu');else if(k==='f'||k==='F')act('fs');else if(/^\d$/.test(k))dig(k);else return;e.preventDefault()});
 setInterval(()=>{if(!$('#live').classList.contains('hide'))tune()},20000);
@@ -218,16 +221,19 @@ setInterval(()=>{if(!$('#live').classList.contains('hide'))tune()},20000);
 /* library */
 let cover=null,openS=null;
 const grp=()=>{const g={};S.items.forEach(i=>{const k=i.series||'Ταινίες';(g[k]=g[k]||[]).push(i)});Object.values(g).forEach(a=>a.sort((x,y)=>x.local&&y.local?x.local.localeCompare(y.local,undefined,{numeric:true}):0));return g};
-const TOP=window.top===window.self;let ATV=false;
-function banner(){const n=S.items.filter(i=>i.local&&!i.url).length,b=$('#lb');b.innerHTML='';b.classList.toggle('hide',!n);if(!n)return;
+const TOP=window.top===window.self;let ATV=false,RM='auto';
+function banner(){const n=S.items.filter(i=>i.local&&!i.url).length,need=n>0||(ATV&&!S.items.some(i=>i.local&&i.url)),b=$('#lb');b.innerHTML='';b.classList.toggle('hide',!need);if(!need)return;
  const inp=el('input',{type:'file',webkitdirectory:'',multiple:'',hidden:''});inp.onchange=e=>{const fs=[...e.target.files];e.target.value='';importFiles(fs,true)};
- const row=el('div',{class:'row'},el('span',{style:'flex:1'},'🔌 Ο δίσκος δεν είναι συνδεδεμένος ('+n+' αρχεία). Οι σειρές και τα προγράμματα έχουν μείνει όπως ήταν. Πάτα «Σύνδεση δίσκου» και διάλεξε τον κεντρικό φάκελο.'),(ATV?el('button',{class:'b p',on:()=>window.AndroidTV.pickFolder()},'🔌 Σύνδεση δίσκου'):el('label',{class:'b p'},'🔌 Σύνδεση δίσκου',inp)));
- if(window.showDirectoryPicker&&TOP)row.append(el('button',{class:'b',on:reconnect},'📌 Με αποθηκευμένο φάκελο'));
+ const row=el('div',{class:'row'},el('span',{style:'flex:1'},(n?'🔌 Ο δίσκος δεν είναι συνδεδεμένος ('+n+' αρχεία). ':'🔌 Δεν έχει συνδεθεί δίσκος. ')+'Οι σειρές και τα προγράμματα έχουν μείνει όπως ήταν. Πάτα «Σύνδεση δίσκου» και διάλεξε τον κεντρικό φάκελο.'),(ATV?el('button',{class:'b p',on:()=>window.AndroidTV.pickFolder()},'🔌 Σύνδεση δίσκου'):(window.showDirectoryPicker&&TOP?el('button',{class:'b p',on:reconnect},'🔌 Σύνδεση δίσκου'):el('label',{class:'b p'},'🔌 Σύνδεση δίσκου',inp))));
  b.append(row)}
-async function reconnect(){
- try{const h=await IDB.get('dir');if(h&&await h.requestPermission({mode:'read'})==='granted'){importFiles(await linkHandle(h),true);return}
-  const h2=await showDirectoryPicker({mode:'read'});await IDB.set('dir',h2);importFiles(await linkHandle(h2),true)}
- catch(e){if(!e||e.name!=='AbortError')say('Δεν μπόρεσα να ανοίξω τον φάκελο. Χρησιμοποίησε το κουμπί «Σύνδεση δίσκου».')}}
+const dirs=async()=>{let a=await IDB.get('dirs');if(!a){const o=await IDB.get('dir');a=o?[{h:o,mode:'auto'}]:[]}return a};
+async function addRoot(h,mode){const a=await dirs();for(const x of a){if(await x.h.isSameEntry(h)){x.mode=mode;await IDB.set('dirs',a);return}}a.push({h,mode});await IDB.set('dirs',a)}
+async function pickRoot(){try{const h=await showDirectoryPicker({mode:'read'});await importFiles(await linkHandle(h),true);await addRoot(h,RM)}catch(e){if(e&&e.name!=='AbortError')say('Δεν μπόρεσα να ανοίξω τον φάκελο.')}}
+async function relinkAll(loud){const a=await dirs();let ok=0,pend=0;
+ for(const x of a){try{let st=await x.h.queryPermission({mode:'read'});if(st!=='granted'&&loud)st=await x.h.requestPermission({mode:'read'});
+  if(st==='granted'){await importFiles(await linkHandle(x.h),false,x.mode);ok++}else pend++}catch(e){pend++}}
+ if(loud)say(a.length?'✓ Επανασυνδέθηκαν '+ok+' φάκελοι'+(pend?' ('+pend+' χρειάζονται άδεια — πάτα ξανά)':''):'Δεν έχει αποθηκευτεί φάκελος ακόμα.');return a.length}
+async function reconnect(){if(!(await relinkAll(true)))pickRoot()}
 function lib(){
  S.covers=S.covers||{};banner();
  S.fav=S.fav||{};
@@ -300,10 +306,10 @@ const clean=nm=>{let b=nm.replace(VID,'');
 const rs=async f=>rs0(f._url?await (await fetch(f._url)).blob():f);
 const rs0=f=>new Promise(res=>{const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const w=300,h=Math.round(im.height*w/im.width),c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(im,0,0,w,h);res(c.toDataURL(f.type==='image/jpeg'?'image/jpeg':'image/png',.85))};im.onerror=()=>res(null);im.src=r.result};r.onerror=()=>res(null);r.readAsDataURL(f)});
 const dur=u=>new Promise(res=>{const v=document.createElement('video');v.preload='metadata';const t=setTimeout(()=>res(0),6000);v.onloadedmetadata=()=>{clearTimeout(t);res(isFinite(v.duration)?v.duration:0)};v.onerror=()=>{clearTimeout(t);res(0)};v.src=u});
-async function importFiles(fs,loud){const st=$('#fs');S.covers=S.covers||{};
+async function importFiles(fs,loud,forceMode){const st=$('#fs');S.covers=S.covers||{};
  const vids=fs.filter(f=>VID.test(f.name)).sort((a,b)=>a.webkitRelativePath.localeCompare(b.webkitRelativePath,undefined,{numeric:true}));
  if(!vids.length){st.textContent='Δεν βρέθηκαν βίντεο';if(loud)say('Δεν βρέθηκαν βίντεο στον φάκελο που διάλεξες. Διάλεξε τον κεντρικό φάκελο που τα περιέχει.');return}
- let mode=$('#fm').value;
+ let mode=forceMode||$('#fm').value;
  if(mode==='auto'){const subs=[...new Set(vids.map(f=>f.webkitRelativePath.split('/')).filter(p=>p.length>=3).map(p=>p[1]))];
   const direct=vids.some(f=>f.webkitRelativePath.split('/').length===2),SE=/season|σεζ|^s\s*\d+|book|βιβλ|part|μέρος|vol|special|extra/i;
   mode=(!subs.length||direct||subs.every(x=>SE.test(x)))?'one':'many'}
@@ -321,7 +327,7 @@ async function importFiles(fs,loud){const st=$('#fs');S.covers=S.covers||{};
  for(const f of fs){if(!IMG.test(f.name)||!COV.test(f.name))continue;const p=f.webkitRelativePath.split('/');
   const ser=mode==='one'?(p.length===2?p[0]:null):(p.length===3?p[1]:null);
   if(ser&&!S.covers[ser]){const c=await rs(f);if(c)S.covers[ser]=c}}
- st.textContent='✓ '+meta.length+' βίντεο ('+(mode==='one'?'μία σειρά':'πολλές σειρές')+')';save();lib();prog();if(loud)say('✓ Συνδέθηκαν '+rl+' υπάρχοντα και προστέθηκαν '+(meta.length-rl)+' νέα βίντεο.');if(!$('#live').classList.contains('hide'))tune(true)}
+ st.textContent='✓ '+meta.length+' βίντεο ('+(mode==='one'?'μία σειρά':'πολλές σειρές')+')';RM=mode;save();lib();prog();if(loud)say('✓ Συνδέθηκαν '+rl+' υπάρχοντα και προστέθηκαν '+(meta.length-rl)+' νέα βίντεο.');if(!$('#live').classList.contains('hide'))tune(true)}
 
 $('#fd').onchange=e=>{const fs=[...e.target.files];e.target.value='';importFiles(fs,true)};
 async function fromServer(loud){try{const r=await (await fetch('/api/list')).json();
@@ -329,6 +335,22 @@ async function fromServer(loud){try{const r=await (await fetch('/api/list')).jso
  if(!fs.length){if(loud)say('Δεν βρέθηκαν βίντεο. Πάτα «Σύνδεση δίσκου» και διάλεξε τον κεντρικό φάκελο.');return}
  importFiles(fs,loud)}catch(e){if(loud)say('Δεν μπόρεσα να διαβάσω τον δίσκο.')}}
 window.onFolder=()=>fromServer(true);
+async function browse(path){
+ const d=$('#dlg'),b=$('#dbox');b.innerHTML='';d.classList.remove('hide');
+ let j={};try{j=await (await fetch(path?'/api/browse?path='+encodeURIComponent(path):'/api/roots')).json()}catch(e){j={error:'δεν απαντά ο server'}}
+ b.append(el('b',{},path||'Δίσκοι / αποθηκευτικοί χώροι'));
+ if(j.info)b.append(el('p',{class:'mu'},j.info));
+ if(j.error)b.append(el('p',{},'Σφάλμα: '+j.error+(j.error==='denied'?' — δώσε άδεια αποθήκευσης: Ρυθμίσεις → Εφαρμογές → Η Τηλεόρασή μου → Άδειες.':'')));
+ const list=el('div',{style:'max-height:50vh;overflow:auto'});
+ if(path)list.append(el('button',{class:'b',style:'display:block;width:100%;text-align:left;margin:4px 0',on:()=>browse(j.parent||'')},'⬆ Πίσω'));
+ (j.dirs||[]).forEach(x=>list.append(el('button',{class:'b',style:'display:block;width:100%;text-align:left;margin:4px 0',on:()=>browse(x.path)},'📁 '+x.name)));
+ if(!(j.dirs||[]).length&&!j.error)list.append(el('p',{class:'mu'},'Δεν υπάρχουν υποφάκελοι εδώ.'));
+ b.append(list);
+ const r=el('div',{class:'row'});
+ if(path&&!j.error)r.append(el('button',{class:'b p',on:async()=>{d.classList.add('hide');try{await fetch('/api/setroot?path='+encodeURIComponent(path))}catch(e){}fromServer(true)}},'✔ Διάλεξε αυτόν τον φάκελο ('+(j.videos||0)+' βίντεο εδώ)'));
+ r.append(el('button',{class:'b',on:()=>d.classList.add('hide')},'Άκυρο'));b.append(r);
+ const f=b.querySelector('button');if(f)f.focus()}
+window.browse=browse;
 window.__back=()=>{if(!$('#dlg').classList.contains('hide')){const b=$('#dbox').querySelectorAll('button');b[b.length-1].click();return true}
  if(nxN){cancelNx();return true}
  if(!$('#lib').classList.contains('hide')&&openS){$('#bk').click();return true}
@@ -336,8 +358,8 @@ window.__back=()=>{if(!$('#dlg').classList.contains('hide')){const b=$('#dbox').
  return false};
 async function walk(h,path,out){for await(const [n,x] of h.entries()){if(x.kind==='directory')await walk(x,path+n+'/',out);else out.push([path+n,x])}}
 async function linkHandle(h){const out=[],fs=[];await walk(h,h.name+'/',out);for(const[p,fh]of out){if(!VID.test(p)&&!(IMG.test(p)&&COV.test(p.split('/').pop())))continue;const f=await fh.getFile();Object.defineProperty(f,'webkitRelativePath',{value:p});fs.push(f)}return fs}
-$('#fh').onclick=async()=>{try{const h=await showDirectoryPicker({mode:'read'});await IDB.set('dir',h);importFiles(await linkHandle(h),true)}catch(e){if(e.name!=='AbortError')say('Ο browser δεν το επιτρέπει εδώ — χρησιμοποίησε το «Σύνδεση φακέλου».')}};
-$('#fr').onclick=async()=>{try{const h=await IDB.get('dir');if(!h)return say('Δεν έχει αποθηκευτεί φάκελος ακόμα.');if(await h.requestPermission({mode:'read'})!=='granted')return;importFiles(await linkHandle(h),true)}catch(e){say('Δεν μπόρεσα να ανοίξω τον φάκελο.')}};
+$('#fh').onclick=pickRoot;
+$('#fr').onclick=()=>relinkAll(true);
 /* programs */
 function prog(){
  const P=$('#progl');P.innerHTML='';
@@ -410,14 +432,14 @@ $('#tt').onclick=()=>{const G=$('#gl');if(G.dataset.tt){guide();return}G.innerHT
  S.channels.forEach((c,i)=>{t+=(i+1)+' '+c.name.toUpperCase()+'\n';[...slotsFor(c,d)].sort((a,b)=>mins(a.t)-mins(b.t)).forEach(s=>{const it=item(s.item);if(it)t+='  '+s.t+' '+it.title+'\n'});t+='\n'});
  G.append(el('pre',{class:'tt'},t))};
 document.addEventListener('keydown',e=>{
- const k=e.key,dl=!$('#dlg').classList.contains('hide'),inp=/INPUT|TEXTAREA|SELECT/.test(e.target.tagName);if(dl||inp)return;
+ const k=e.key,dl=!$('#dlg').classList.contains('hide'),inp=/INPUT|TEXTAREA|SELECT/.test(e.target.tagName);if(inp||(dl&&!/^Arrow/.test(k)))return;
  const live=!$('#live').classList.contains('hide');
- if(live&&k==='Enter'){show('guide');e.preventDefault();return}
- if(k==='Enter'&&document.activeElement&&document.activeElement.classList.contains('cv')){document.activeElement.click();return}
+ if(live&&!dl&&k==='Enter'){show('guide');e.preventDefault();return}
+ if(k==='Enter'&&document.activeElement&&(document.activeElement.classList.contains('cv')||document.activeElement.tagName==='LABEL')){document.activeElement.click();return}
  if((k==='Escape'||k==='GoBack'||k==='BrowserBack')&&openS&&!$('#lib').classList.contains('hide')){$('#bk').click();return}
- if(live||!/^Arrow(Up|Down|Left|Right)$/.test(k))return;
+ if((live&&!dl)||!/^Arrow(Up|Down|Left|Right)$/.test(k))return;
  const cur=document.activeElement&&document.activeElement!==document.body?document.activeElement:null;
- const all=[...document.querySelectorAll('header button,nav button,main button,main .cv')].filter(x=>x.offsetParent);
+ const all=[...document.querySelectorAll(dl?'#dbox button':'header button,nav button,main button,main label.b,main .cv')].filter(x=>x.offsetParent);
  if(!cur){if(all[0])all[0].focus();e.preventDefault();return}
  const r=cur.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let best=null,bd=1e12;
  all.forEach(x=>{if(x===cur)return;const q=x.getBoundingClientRect(),dx=q.left+q.width/2-cx,dy=q.top+q.height/2-cy,ax=Math.abs(dx),ay=Math.abs(dy);
@@ -426,6 +448,19 @@ document.addEventListener('keydown',e=>{
  if(best){best.focus();best.scrollIntoView({block:'nearest'});e.preventDefault()}});
 $('#qs').oninput=()=>lib();
 $('#rnd').onclick=()=>{const l=S.items.filter(i=>!i.local||i.url);if(!l.length)return say('Δεν υπάρχουν διαθέσιμα επεισόδια');const i=l[Math.floor(Math.random()*l.length)];showS(i.series||'Ταινίες');playEp(i)};
+const dbgL=[];
+function dbgShow(){const d=$('#dbg');if(!d.classList.contains('hide'))d.textContent='TASTA (Menu = κλείσιμο)\n'+dbgL.join('\n')}
+document.addEventListener('keydown',e=>{dbgL.push(e.key+' | '+e.code+' | '+e.keyCode);if(dbgL.length>8)dbgL.shift();dbgShow()},true);
+window.addEventListener('error',e=>{dbgL.push('ERR '+e.message);if(dbgL.length>8)dbgL.shift();dbgShow()});
+document.addEventListener('keydown',e=>{const k=e.key,live=!$('#live').classList.contains('hide');
+ if(k==='ContextMenu'&&ATV){$('#dbg').classList.toggle('hide');dbgShow();return}
+ if(k==='Guide'){show('guide');return}
+ if(k==='Info'&&live){const c=S.channels.find(x=>x.id===chId);if(c)osd(info(c),5000);return}
+ const v=$('#tv2 video');
+ if(k==='MediaPlayPause'&&!live&&v){v.paused?v.play():v.pause()}
+ else if(k==='MediaFastForward'&&!live&&v)v.currentTime+=10;
+ else if(k==='MediaRewind'&&!live&&v)v.currentTime-=10;
+ else if(k==='MediaTrackNext'&&live)act('cp');else if(k==='MediaTrackPrevious'&&live)act('cm')});
 function kidUI(){const k=S.kid&&S.kid.on;document.querySelectorAll('nav button').forEach(b=>{if(b.dataset.t==='lib'||b.dataset.t==='prog')b.style.display=k?'none':''});$('#kb').textContent=k?'🔓':'🔒';if(k)show('live')}
 $('#kb').onclick=async()=>{
  if(S.kid&&S.kid.on){const p=await dlg('PIN για έξοδο από τη λειτουργία παιδιού:',{input:1});if(p===S.kid.pin){S.kid.on=false;save();kidUI();tune(true)}else if(p!==null)say('Λάθος PIN');return}
@@ -435,9 +470,10 @@ $('#kb').onclick=async()=>{
  S.kid={on:true,pin:pin.trim(),bed:(bed||'').trim(),wake:(wake||'').trim()};save();kidUI()};
 (async()=>{try{const d=await IDB.get('S');if(d)S=d}catch(e){}
  S.covers=S.covers||{};S.items.forEach(i=>{if(i.local&&!/^S\d+E\d+( · |$)/.test(i.title))i.title=clean(i.title)});
+ document.querySelectorAll('label.b').forEach(l=>l.tabIndex=0);
  if(location.hostname==='localhost'&&location.port==='8765'){ATV=true;document.body.classList.add('atv');$('#tvw').classList.add('ffs');$('#fd').parentNode.addEventListener('click',e=>{e.preventDefault();window.AndroidTV&&window.AndroidTV.pickFolder()})}
  $('#ld').value=S.lead||150;
  if(S.items.length){if(!S.lastBackup)S.lastBackup=Date.now();else if(Date.now()-S.lastBackup>14*864e5)setTimeout(()=>say('⏰ Πέρασαν πάνω από 14 μέρες από το τελευταίο backup — Προγράμματα → Εξαγωγή backup.'),1500)}
  save();chBtns();lib();prog();kidUI();if(ATV)fromServer(false);
- if(window.showDirectoryPicker&&TOP){$('#fh').hidden=false;$('#fr').hidden=false;try{const h=await IDB.get('dir');if(h&&await h.queryPermission({mode:'read'})==='granted')importFiles(await linkHandle(h))}catch(e){}}})();
-</script><!-- audio-fix --></body></html>
+ if(window.showDirectoryPicker&&TOP){$('#fr').hidden=false;$('#fd').parentNode.addEventListener('click',e=>{e.preventDefault();pickRoot()});relinkAll(false)}})();
+</script></body></html>
