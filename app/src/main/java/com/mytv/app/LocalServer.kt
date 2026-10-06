@@ -2,26 +2,34 @@ package com.mytv.app
 
 import android.content.Context
 import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.os.storage.StorageManager
 import androidx.documentfile.provider.DocumentFile
 import fi.iki.elonen.NanoHTTPD
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
+import java.io.FileInputStream
+import java.io.InputStream
 
 class LocalServer(private val ctx: Context, port: Int) : NanoHTTPD("127.0.0.1", port) {
-    @Volatile private var files: Map<String, DocumentFile> = emptyMap()
+    class Entry(val name: String, val len: () -> Long, val open: () -> InputStream?)
+
+    @Volatile private var files: Map<String, Entry> = emptyMap()
     @Volatile private var scan: Thread? = null
+    private val prefs = ctx.getSharedPreferences("p", 0)
 
     init {
-        ctx.getSharedPreferences("p", 0).getString("tree", null)?.let { setTree(Uri.parse(it)) }
+        val root = prefs.getString("root", null)
+        val tree = prefs.getString("tree", null)
+        if (root != null) setRoot(File(root)) else if (tree != null) setTree(Uri.parse(tree))
     }
 
-    fun setTree(u: Uri) {
+    private fun startScan(block: () -> Map<String, Entry>) {
         val t = Thread {
             try {
-                val root = DocumentFile.fromTreeUri(ctx, u) ?: return@Thread
-                val m = HashMap<String, DocumentFile>()
-                walk(root, root.name ?: "Disk", m)
-                files = m
+                files = block()
             } catch (e: Exception) {
             }
         }
@@ -29,11 +37,46 @@ class LocalServer(private val ctx: Context, port: Int) : NanoHTTPD("127.0.0.1", 
         t.start()
     }
 
-    private fun walk(d: DocumentFile, path: String, m: MutableMap<String, DocumentFile>) {
+    fun setRoot(dir: File) {
+        prefs.edit().putString("root", dir.absolutePath).remove("tree").apply()
+        startScan {
+            val m = HashMap<String, Entry>()
+            walkFile(dir, if (dir.name.isEmpty()) "Disk" else dir.name, m)
+            m
+        }
+    }
+
+    fun setTree(u: Uri) {
+        prefs.edit().putString("tree", u.toString()).remove("root").apply()
+        startScan {
+            val m = HashMap<String, Entry>()
+            val root = DocumentFile.fromTreeUri(ctx, u)
+            if (root != null) walkDoc(root, root.name ?: "Disk", m)
+            m
+        }
+    }
+
+    private fun walkFile(d: File, path: String, m: MutableMap<String, Entry>) {
+        val list = d.listFiles() ?: return
+        for (f in list) {
+            val p = "$path/${f.name}"
+            if (f.isDirectory) walkFile(f, p, m)
+            else m[p] = Entry(f.name, { f.length() }, { FileInputStream(f) })
+        }
+    }
+
+    private fun walkDoc(d: DocumentFile, path: String, m: MutableMap<String, Entry>) {
         for (f in d.listFiles()) {
             val n = f.name ?: continue
             val p = "$path/$n"
-            if (f.isDirectory) walk(f, p, m) else m[p] = f
+            if (f.isDirectory) walkDoc(f, p, m)
+            else m[p] = Entry(n, { f.length() }, { ctx.contentResolver.openInputStream(f.uri) })
+        }
+    }
+
+    private fun ensure() {
+        if (files.isEmpty() && scan?.isAlive != true) {
+            prefs.getString("root", null)?.let { val f = File(it); if (f.exists()) setRoot(f) }
         }
     }
 
@@ -52,6 +95,57 @@ class LocalServer(private val ctx: Context, port: Int) : NanoHTTPD("127.0.0.1", 
     private fun notFound(): Response =
         newFixedLengthResponse(Response.Status.NOT_FOUND, "text/plain", "404")
 
+    private fun json(o: JSONObject): Response =
+        newFixedLengthResponse(Response.Status.OK, "application/json; charset=utf-8", o.toString())
+
+    private fun roots(): JSONObject {
+        val arr = JSONArray()
+        val seen = HashSet<String>()
+        fun add(name: String, f: File?) {
+            if (f != null && seen.add(f.absolutePath)) {
+                arr.put(JSONObject().put("name", name).put("path", f.absolutePath))
+            }
+        }
+        try {
+            val sm = ctx.getSystemService(Context.STORAGE_SERVICE) as StorageManager
+            for (v in sm.storageVolumes) {
+                val dir: File? = if (Build.VERSION.SDK_INT >= 30) {
+                    v.directory
+                } else {
+                    try {
+                        v.javaClass.getMethod("getPathFile").invoke(v) as File?
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+                add(v.getDescription(ctx) + (if (v.isRemovable) " (εξωτερικός)" else ""), dir)
+            }
+        } catch (e: Exception) {
+        }
+        try {
+            File("/storage").listFiles()?.forEach {
+                if (it.name != "self" && it.name != "emulated") add(it.name, it)
+            }
+        } catch (e: Exception) {
+        }
+        add("Εσωτερική μνήμη", Environment.getExternalStorageDirectory())
+        return JSONObject().put("dirs", arr).put("info", "Android API " + Build.VERSION.SDK_INT)
+    }
+
+    private fun browse(path: String): JSONObject {
+        val f = File(path)
+        val par = f.parent?.takeIf { it != "/storage" && it != "/" && it != "/storage/emulated" } ?: ""
+        val l = f.listFiles()
+            ?: return JSONObject().put("error", "denied").put("path", path).put("parent", par)
+        val arr = JSONArray()
+        l.filter { it.isDirectory && !it.name.startsWith(".") }
+            .sortedBy { it.name.lowercase() }
+            .forEach { arr.put(JSONObject().put("name", it.name).put("path", it.absolutePath)) }
+        val vids = setOf("mp4", "m4v", "webm", "mkv", "mov", "avi")
+        val n = l.count { it.isFile && it.name.substringAfterLast('.', "").lowercase() in vids }
+        return JSONObject().put("path", path).put("parent", par).put("dirs", arr).put("videos", n)
+    }
+
     override fun serve(s: IHTTPSession): Response {
         val uri = s.uri
         try {
@@ -63,17 +157,22 @@ class LocalServer(private val ctx: Context, port: Int) : NanoHTTPD("127.0.0.1", 
                 return r
             }
             if (uri == "/api/list") {
+                ensure()
                 scan?.join(120000)
                 val arr = JSONArray()
                 for (p in files.keys) arr.put(JSONObject().put("path", p))
-                return newFixedLengthResponse(
-                    Response.Status.OK, "application/json; charset=utf-8",
-                    JSONObject().put("files", arr).toString()
-                )
+                return json(JSONObject().put("files", arr))
+            }
+            if (uri == "/api/roots") return json(roots())
+            if (uri == "/api/browse") return json(browse(s.parameters["path"]?.firstOrNull() ?: ""))
+            if (uri == "/api/setroot") {
+                val p = s.parameters["path"]?.firstOrNull()
+                if (p != null) setRoot(File(p))
+                return json(JSONObject().put("ok", p != null))
             }
             if (uri.startsWith("/f/")) {
-                val f = files[uri.substring(3)] ?: return notFound()
-                return stream(f, s)
+                val e = files[uri.substring(3)] ?: return notFound()
+                return stream(e, s)
             }
         } catch (e: Exception) {
             return newFixedLengthResponse(Response.Status.INTERNAL_ERROR, "text/plain", e.toString())
@@ -81,8 +180,8 @@ class LocalServer(private val ctx: Context, port: Int) : NanoHTTPD("127.0.0.1", 
         return notFound()
     }
 
-    private fun stream(f: DocumentFile, s: IHTTPSession): Response {
-        val len = f.length()
+    private fun stream(e: Entry, s: IHTTPSession): Response {
+        val len = e.len()
         val rh = s.headers["range"]
         var start = 0L
         var end = len - 1
@@ -98,7 +197,7 @@ class LocalServer(private val ctx: Context, port: Int) : NanoHTTPD("127.0.0.1", 
             r.addHeader("Content-Range", "bytes */$len")
             return r
         }
-        val ins = ctx.contentResolver.openInputStream(f.uri) ?: return notFound()
+        val ins = e.open() ?: return notFound()
         var sk = start
         while (sk > 0) {
             val k = ins.skip(sk)
@@ -107,7 +206,7 @@ class LocalServer(private val ctx: Context, port: Int) : NanoHTTPD("127.0.0.1", 
         }
         val r = newFixedLengthResponse(
             if (part) Response.Status.PARTIAL_CONTENT else Response.Status.OK,
-            mime(f.name ?: ""), ins, end - start + 1
+            mime(e.name), ins, end - start + 1
         )
         r.addHeader("Accept-Ranges", "bytes")
         if (part) r.addHeader("Content-Range", "bytes $start-$end/$len")
