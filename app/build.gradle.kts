@@ -6,12 +6,20 @@ plugins {
 android {
     namespace = "com.mytv.app"
     compileSdk = 34
+    signingConfigs {
+        getByName("debug") {
+            storeFile = rootProject.file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
     defaultConfig {
         applicationId = "com.mytv.app"
         minSdk = 24
         targetSdk = 29
-        versionCode = 2
-        versionName = "1.1"
+        versionCode = 3
+        versionName = "1.3"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
