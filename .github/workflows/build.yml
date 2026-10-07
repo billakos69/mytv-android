@@ -7,6 +7,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Check index.html
+        run: |
+          s=$(wc -c < app/src/main/assets/index.html)
+          echo "index.html: $s bytes"
+          if [ "$s" -lt 50000 ]; then echo "::error::index.html is truncated ($s bytes). Upload the full file (~58 KB) with Upload files."; exit 1; fi
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -14,8 +19,12 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: 8.7
-      - run: base64 -d debug.keystore.b64 > debug.keystore
-      - run: keytool -list -keystore debug.keystore -storepass android
+      - name: Fixed signing key (optional)
+        run: |
+          if [ -f debug.keystore.b64 ]; then
+            base64 -d debug.keystore.b64 > debug.keystore
+            keytool -list -keystore debug.keystore -storepass android
+          fi
       - run: gradle assembleDebug --no-daemon
       - uses: actions/upload-artifact@v4
         with:
