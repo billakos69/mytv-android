@@ -5,37 +5,34 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
-import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
-import android.webkit.ConsoleMessage
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
-import android.webkit.WebResourceError
-import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.widget.FrameLayout
-import android.widget.TextView
 import android.widget.Toast
 
 class MainActivity : Activity() {
     private lateinit var web: WebView
-    private lateinit var dbg: TextView
     private var server: LocalServer? = null
-    private val log = ArrayList<String>()
+    @Volatile private var inInput = false
 
-    private fun note(s: String) {
-        runOnUiThread {
-            log.add(s)
-            while (log.size > 12) log.removeAt(0)
-            dbg.text = log.joinToString("\n")
-        }
-    }
+    private val focusJs =
+        "if(!window.__ftk){window.__ftk=1;" +
+            "document.addEventListener('focusin',function(e){try{AndroidTV.inp(/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName||''))}catch(x){}},true);" +
+            "document.addEventListener('focusout',function(){try{AndroidTV.inp(false)}catch(x){}},true)}"
+
+    private val okJs =
+        "(function(){var a=document.activeElement||document.body;" +
+            "var ev=new KeyboardEvent('keydown',{key:'Enter',code:'Enter',keyCode:13,which:13,bubbles:true,cancelable:true});" +
+            "a.dispatchEvent(ev);" +
+            "if(ev.defaultPrevented||a===document.body)return;" +
+            "if(a.tagName==='LABEL'||a.classList.contains('cv'))return;" +
+            "if(a.tagName==='BUTTON'||a.tagName==='A'||a.tagName==='SUMMARY'||a.hasAttribute('tabindex'))a.click()})()"
 
     private fun needStoragePermission(): Boolean =
         Build.VERSION.SDK_INT >= 23 &&
@@ -44,58 +41,30 @@ class MainActivity : Activity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(b: Bundle?) {
         super.onCreate(b)
-        val root = FrameLayout(this)
         web = WebView(this)
-        dbg = TextView(this).apply {
-            setTextColor(Color.WHITE)
-            setBackgroundColor(0xCC000000.toInt())
-            textSize = 14f
-            setPadding(16, 8, 16, 8)
-        }
-        root.addView(web, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
-        root.addView(
-            dbg,
-            FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
-                Gravity.TOP or Gravity.START
-            )
+        web.layoutParams = ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
         )
-        setContentView(root)
+        setContentView(web)
 
-        note("v1.3 Android API " + Build.VERSION.SDK_INT)
-        note("index.html στην εφαρμογή: " + (assets.list("")?.contains("index.html") == true))
-        note("άδεια αποθήκευσης: " + !needStoragePermission())
         if (needStoragePermission()) {
             requestPermissions(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE), 2)
         }
         try {
             server = LocalServer(this, 8765).also { it.start() }
-            note("server OK")
         } catch (e: Exception) {
-            note("server ΣΦΑΛΜΑ: $e")
+            Toast.makeText(this, "Ο τοπικός server δεν ξεκίνησε: $e", Toast.LENGTH_LONG).show()
         }
 
-        WebView.setWebContentsDebuggingEnabled(true)
         web.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
             mediaPlaybackRequiresUserGesture = false
         }
-        web.webChromeClient = object : WebChromeClient() {
-            override fun onConsoleMessage(m: ConsoleMessage): Boolean {
-                if (m.messageLevel() == ConsoleMessage.MessageLevel.ERROR) {
-                    note("JS: " + m.message() + " @" + m.lineNumber())
-                }
-                return true
-            }
-        }
+        web.webChromeClient = WebChromeClient()
         web.webViewClient = object : WebViewClient() {
             override fun onPageFinished(v: WebView, url: String) {
-                note("φορτώθηκε: $url")
-            }
-
-            override fun onReceivedError(v: WebView, r: WebResourceRequest, e: WebResourceError) {
-                if (r.isForMainFrame) note("ΣΦΑΛΜΑ φόρτωσης: " + e.description + " " + r.url)
+                v.evaluateJavascript(focusJs, null)
             }
         }
         web.addJavascriptInterface(Bridge(), "AndroidTV")
@@ -109,7 +78,11 @@ class MainActivity : Activity() {
     inner class Bridge {
         @JavascriptInterface
         fun ready() {
-            runOnUiThread { dbg.visibility = View.GONE }
+        }
+
+        @JavascriptInterface
+        fun inp(b: Boolean) {
+            inInput = b
         }
 
         @JavascriptInterface
@@ -153,7 +126,6 @@ class MainActivity : Activity() {
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == 2) {
-            note("άδεια αποθήκευσης: " + !needStoragePermission())
             if (!needStoragePermission()) {
                 server?.rescan()
                 web.evaluateJavascript("window.onFolder&&window.onFolder()", null)
@@ -186,22 +158,27 @@ class MainActivity : Activity() {
         KeyEvent.KEYCODE_MEDIA_PREVIOUS -> "MediaTrackPrevious"
         KeyEvent.KEYCODE_GUIDE -> "Guide"
         KeyEvent.KEYCODE_INFO -> "Info"
+        KeyEvent.KEYCODE_MENU -> "ContextMenu"
         else -> null
     }
 
+    private fun isOk(code: Int): Boolean =
+        code == KeyEvent.KEYCODE_DPAD_CENTER ||
+            code == KeyEvent.KEYCODE_ENTER ||
+            code == KeyEvent.KEYCODE_NUMPAD_ENTER ||
+            code == KeyEvent.KEYCODE_BUTTON_A
+
     override fun dispatchKeyEvent(ev: KeyEvent): Boolean {
-        if (ev.action == KeyEvent.ACTION_DOWN && ev.repeatCount == 0) {
-            note("πλήκτρο " + KeyEvent.keyCodeToString(ev.keyCode))
-        }
-        if (ev.keyCode == KeyEvent.KEYCODE_MENU) {
-            if (ev.action == KeyEvent.ACTION_DOWN) {
-                dbg.visibility = if (dbg.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+        val code = ev.keyCode
+        if (isOk(code) && !inInput) {
+            if (ev.action == KeyEvent.ACTION_DOWN && ev.repeatCount == 0) {
+                web.evaluateJavascript(okJs, null)
             }
             return true
         }
-        val k = mapped(ev.keyCode)
+        val k = mapped(code)
         if (k != null) {
-            if (ev.action == KeyEvent.ACTION_DOWN && ev.repeatCount == 0) key(k, ev.keyCode)
+            if (ev.action == KeyEvent.ACTION_DOWN && ev.repeatCount == 0) key(k, code)
             return true
         }
         if (!web.hasFocus()) web.requestFocus()
