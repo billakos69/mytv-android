@@ -62,7 +62,7 @@ class MainActivity : Activity() {
         )
         setContentView(root)
 
-        note("v1.2 Android API " + Build.VERSION.SDK_INT)
+        note("v1.3 Android API " + Build.VERSION.SDK_INT)
         note("index.html στην εφαρμογή: " + (assets.list("")?.contains("index.html") == true))
         note("άδεια αποθήκευσης: " + !needStoragePermission())
         if (needStoragePermission()) {
@@ -95,7 +95,7 @@ class MainActivity : Activity() {
             }
 
             override fun onReceivedError(v: WebView, r: WebResourceRequest, e: WebResourceError) {
-                note("ΣΦΑΛΜΑ φόρτωσης: " + e.description + " " + r.url)
+                if (r.isForMainFrame) note("ΣΦΑΛΜΑ φόρτωσης: " + e.description + " " + r.url)
             }
         }
         web.addJavascriptInterface(Bridge(), "AndroidTV")
@@ -154,7 +154,12 @@ class MainActivity : Activity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == 2) {
             note("άδεια αποθήκευσης: " + !needStoragePermission())
-            web.evaluateJavascript("window.browse&&window.browse('')", null)
+            if (!needStoragePermission()) {
+                server?.rescan()
+                web.evaluateJavascript("window.onFolder&&window.onFolder()", null)
+            } else {
+                web.evaluateJavascript("window.browse&&window.browse('')", null)
+            }
         }
     }
 
