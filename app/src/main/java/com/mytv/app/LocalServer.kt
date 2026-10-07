@@ -168,9 +168,7 @@ class LocalServer(private val ctx: Context, port: Int) : NanoHTTPD("127.0.0.1", 
         if (host != "localhost" && host != "127.0.0.1") return notFound()
         try {
             if (uri == "/" || uri == "/index.html") {
-                val r = newChunkedResponse(
-                    Response.Status.OK, "text/html; charset=utf-8", ctx.assets.open("index.html")
-                )
+                val r = newFixedLengthResponse(Response.Status.OK, "text/html; charset=utf-8", indexHtml())
                 r.addHeader("Cache-Control", "no-store")
                 return r
             }
