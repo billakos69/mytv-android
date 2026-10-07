@@ -98,6 +98,16 @@ class LocalServer(private val ctx: Context, port: Int) : NanoHTTPD("127.0.0.1", 
         else -> "application/octet-stream"
     }
 
+        private fun indexHtml(): String {
+        val b = ctx.assets.open("index.html").use { it.readBytes() }
+        val t = String(b, Charsets.UTF_8)
+        if (t.trimEnd().endsWith("</html>") && b.size > 30000) return t
+        return "<meta charset=utf-8><body style='background:#121214;color:#fff;font:28px sans-serif;padding:40px'>" +
+            "<h2>Το αρχείο index.html μέσα στην εφαρμογή είναι κομμένο</h2>" +
+            "<p>Μέγεθος: " + b.size + " bytes. Πρέπει να είναι περίπου 58000.</p>" +
+            "<p>Ανέβασε ξανά το πλήρες index.html στο GitHub (Add file → Upload files), όχι με επικόλληση.</p>"
+    }
+
     private fun notFound(): Response =
         newFixedLengthResponse(Response.Status.NOT_FOUND, "text/plain", "404")
 
