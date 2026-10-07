@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="el"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Δική μου Τηλεόραση</title>
+<style>
+:root{--bg:#f4f2ee;--card:#fff;--tx:#1d1d1f;--mu:#6b6b70;--ac:#d6336c;--bd:#ddd9d2;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121214;--card:#1c1c20;--tx:#eee;--mu:#9a9aa2;--bd:#2c2c32}}
+:root[data-theme="dark"]{--bg:#121214;--card:#1c1c20;--tx:#eee;--mu:#9a9aa2;--bd:#2c2c32}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+header{display:flex;gap:6px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--bd);flex-wrap:wrap}
+header b{font-size:17px;margin-right:auto}
+nav button,.b{background:var(--card);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;font:inherit;cursor:pointer}
+nav button.on,.b.p{background:var(--ac);border-color:var(--ac);color:#fff}
+main{max-width:980px;margin:0 auto;padding:14px}
+.tv{background:#000;border-radius:12px;aspect-ratio:16/9;width:100%;overflow:hidden;position:relative;display:flex;align-items:center;justify-content:center;color:#aaa;text-align:center}
+.tv iframe,.tv video{position:absolute;inset:0;width:100%;height:100%;border:0}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px;margin:10px 0}
+input,select{background:var(--bg);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:7px 9px;font:inherit;min-width:0}
+input.w{flex:1 1 220px}
+.mu{color:var(--mu);font-size:13px}
+.li{display:flex;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--bd)}
+.li span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+h3{margin:14px 0 4px;font-size:15px}
+.hide{display:none}
+.g{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}.cv{aspect-ratio:2/3;background:var(--bd) center/cover;border-radius:10px;display:flex;align-items:flex-end;cursor:pointer;overflow:hidden}.cv span{width:100%;padding:18px 8px 6px;color:#fff;font-size:13px;background:linear-gradient(transparent,rgba(0,0,0,.8))}textarea{width:100%;background:var(--bg);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:8px;font:13px monospace}
+.tvw{position:relative}.sh{position:absolute;inset:0;z-index:2}#bug{position:absolute;top:10px;right:12px;z-index:3;pointer-events:none}#bug img{max-height:44px;max-width:120px;opacity:.9}#osd{position:absolute;left:14px;top:12px;z-index:3;color:#fff;background:rgba(0,0,0,.65);padding:4px 10px;border-radius:6px;font-weight:600;display:none;pointer-events:none}.lg{height:22px;vertical-align:middle;margin-right:6px}.th{height:34px;border-radius:4px}.s{padding:3px 8px;font-size:12px}.rc button{min-width:44px}.tvw:fullscreen{background:#000}.tvw:fullscreen .tv{height:100%;aspect-ratio:auto;border-radius:0}
+#dlg{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:50;display:flex;align-items:center;justify-content:center;padding:14px}#dlg.hide{display:none}#dbox{max-width:420px;width:100%}
+.nx{position:absolute;right:14px;bottom:64px;z-index:5;background:rgba(0,0,0,.85);color:#fff;border-radius:10px;padding:12px 14px;max-width:320px}.nx .row{margin:8px 0 0}.li.on span:nth-of-type(1){color:var(--ac);font-weight:600}
+.xb{display:none;position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:6}.ffs{position:fixed!important;inset:0;z-index:40;background:#000;border-radius:0}.ffs .xb{display:block}.ffs .tv{height:100%;aspect-ratio:auto;border-radius:0}
+#osd{white-space:pre-line}
+:focus-visible{outline:3px solid var(--ac);outline-offset:2px}@media(min-width:1200px){body{font-size:18px}}
+#snow{position:absolute;inset:0;width:100%;height:100%;z-index:3;display:none;pointer-events:none;image-rendering:pixelated}
+.bars{position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:center;background:linear-gradient(90deg,#c0c0c0 0 14.28%,#c0c000 0 28.56%,#00c0c0 0 42.84%,#00c000 0 57.12%,#c000c0 0 71.4%,#c00000 0 85.68%,#0000c0 0)}.bars b{background:#000;color:#fff;padding:8px 14px;margin-bottom:12%}
+.tt{background:#000;color:#3f3;font:16px/1.4 monospace;padding:14px;border-radius:10px;white-space:pre-wrap}
+.atv .xb{display:none!important}
+#dbg{position:fixed;top:8px;left:8px;z-index:90;background:rgba(0,0,0,.85);color:#3f3;font:14px/1.3 monospace;padding:8px;border-radius:6px;pointer-events:none;margin:0}
+.chs button{margin:0 6px 6px 0}
+</style></head><body>
+<header><b>📺 Η Τηλεόρασή μου</b>
+<nav><button data-t="live" class="on">Live TV</button> <button data-t="guide">Οδηγός</button> <button data-t="lib">Βιβλιοθήκη</button> <button data-t="prog">Προγράμματα</button></nav><button class="b" id="kb" title="Λειτουργία παιδιού">🔒</button></header>
+<main>
+<div class="card hide" id="lb"></div>
+<section id="live">
+ <div class="chs row" id="chbtn"></div>
+ <div class="tvw" id="tvw"><div class="tv" id="tv">Διάλεξε κανάλι</div><div class="sh" oncontextmenu="return false"></div><button class="b xb" onclick="toggleFS(this.parentNode)">✕ Έξοδος</button><div id="bug"></div><canvas id="snow" width="160" height="90"></canvas><div id="osd"></div></div>
+ <div class="row rc" id="rc"><button class="b" data-a="cm">CH −</button><button class="b" data-a="cp">CH +</button><button class="b" data-a="mu">🔇</button><button class="b" data-a="vm">🔉</button><button class="b" data-a="vp">🔊</button><button class="b" data-a="fs">⛶</button></div>
+ <div class="row rc" id="np"></div>
+ <p class="mu" id="now"></p>
+ <div id="next" class="mu"></div>
+ <div class="mu">Τηλεκοντρόλ πληκτρολογίου: ↑/↓ κανάλι, ←/→ ένταση, 0-9 αριθμός καναλιού, M σίγαση, F πλήρης οθόνη. Στο Live δεν υπάρχει pause/προώθηση. Ένταση/σίγαση λειτουργούν μόνο σε αρχεία βίντεο (όχι Drive/YouTube).</div>
+</section>
+
+<section id="guide" class="hide"><div class="row"><button class="b" id="tt">📟 Teletext</button></div><div id="gl"></div><p class="mu">Πάτα ένα πρόγραμμα για να δεις το κανάλι.</p></section>
+
+<section id="lib" class="hide">
+ <div id="tb" class="row"><input class="w" id="qs" placeholder="🔍 Αναζήτηση σειράς ή επεισοδίου"><button class="b" id="rnd">🎲 Τυχαίο επεισόδιο</button></div>
+ <div id="shelf"></div>
+ <div id="ser" class="hide">
+  <div class="row"><button class="b" id="bk">← Πίσω</button><b id="st" style="flex:1"></b><span id="sbt"></span><select id="ld" title="Πόσο νωρίς εμφανίζεται η ειδοποίηση για το επόμενο επεισόδιο"><option value="30">Επόμενο: 30″ πριν το τέλος</option><option value="60">1′ πριν</option><option value="120">2′ πριν</option><option value="150">2′30″ πριν</option><option value="180">3′ πριν</option></select><button class="b" id="sf" title="Πλήρης οθόνη">⛶</button><button class="b" id="sd">Διαγραφή σειράς</button></div>
+  <div class="tvw" id="tvw2"><div class="tv" id="tv2">Πάτα ▶ σε κάποιο επεισόδιο</div><div id="nx" class="nx hide"></div><button class="b xb" onclick="toggleFS(this.parentNode)">✕ Έξοδος</button></div>
+  <div id="eps" class="card"></div>
+ </div>
+ <div class="card">
+  <b>📂 Φάκελος από τον υπολογιστή ή εξωτερικό δίσκο</b>
+  <div class="mu">Διάλεξε έναν φάκελο με υποφακέλους σειρών (ένας υποφάκελος = μια σειρά) ή απευθείας φάκελο μιας σειράς. Διαβάζει επεισόδια, διάρκειες και cover (cover.jpg / poster.jpg / folder.jpg) μόνο του. Τα αρχεία δεν ανεβαίνουν πουθενά.</div>
+  <div class="row"><select id="fm"><option value="auto">Αυτόματα</option><option value="one">Ο φάκελος είναι ΜΙΑ σειρά (υποφάκελοι = σεζόν)</option><option value="many">Ο φάκελος έχει ΠΟΛΛΕΣ σειρές (υποφάκελοι = σειρές)</option></select><label class="b p">Σύνδεση φακέλου <input type="file" id="fd" webkitdirectory multiple hidden></label><button class="b" id="fh" hidden>📌 Φάκελος που θυμάται</button><button class="b" id="fr" hidden>🔌 Επανασύνδεση δίσκου</button><span class="mu" id="fs"></span></div>
+  <div class="mu">Μετά από επανεκκίνηση της σελίδας ξαναδιάλεξε τον ίδιο φάκελο για να ξανασυνδεθούν τα αρχεία (οι σειρές και τα προγράμματα μένουν). Ο browser παίζει σίγουρα mp4/m4v/webm — τα mkv/avi συχνά δεν παίζουν.</div>
+ </div>
+ <div class="card">
+  <b>Προσθήκη σειράς / φακέλου</b>
+  <div class="row"><input class="w" id="sn" placeholder="Όνομα σειράς (ή «Ταινίες»)" list="sl"><datalist id="sl"></datalist>
+  <label class="b">Cover <input type="file" id="sc" accept="image/*" hidden></label><span class="mu" id="scn"></span><input class="w" id="slg" placeholder="ή λινκ cover (προαιρετικά)">
+  <input id="id" type="number" min="1" value="45" style="width:80px" title="Διάρκεια ανά επεισόδιο"> <span class="mu">λεπτά/επ.</span><select id="pq" title="Μόνο για λινκ Google Photos"><option value="keep">Photos: όπως είναι</option><option value="m18">Photos 360p (=m18)</option><option value="m22">Photos 720p (=m22)</option><option value="m37">Photos 1080p (=m37)</option></select></div>
+  <textarea id="sb" rows="6" placeholder="Επικόλλησε όλα τα επεισόδια, ένα ανά γραμμή:&#10;Τίτλος | λινκ&#10;ή μόνο το λινκ (θα ονομαστεί Επεισόδιο 1, 2, 3…)"></textarea>
+  <div class="row"><button class="b p" id="ia">Προσθήκη επεισοδίων</button></div>
+ </div>
+ <div class="card">
+  <b>Βοηθός για ολόκληρο φάκελο Drive</b>
+  <div class="mu">Το Drive δεν αφήνει μια ιστοσελίδα να διαβάσει φακέλους, οπότε: πήγαινε στο script.google.com → Νέο έργο, επικόλλησε αυτό, βάλε το ID του φακέλου (το κομμάτι μετά το /folders/ στο λινκ), Εκτέλεση, και αντίγραψε τη λίστα από το Αρχείο καταγραφής στο πλαίσιο παραπάνω. Ταξινομεί τα αρχεία κατά όνομα και ανοίγει το φάκελο σε «όποιον έχει το λινκ».</div>
+  <textarea id="gs" rows="5" readonly onclick="this.select()">function main(){var f=DriveApp.getFolderById('ID_ΦΑΚΕΛΟΥ');f.setSharing(DriveApp.Access.ANYONE_WITH_LINK,DriveApp.Permission.VIEW);var a=[],it=f.getFiles();while(it.hasNext()){var x=it.next();a.push([x.getName(),x.getUrl()])}a.sort(function(p,q){return p[0].localeCompare(q[0],undefined,{numeric:true})});Logger.log(a.map(function(r){return r[0]+' | '+r[1]}).join('\n'))}</textarea>
+ </div>
+
+ <div class="card">
+  <b>Βοηθός για Google Photos (πολλά επεισόδια μαζί)</b>
+  <div class="mu">Τα λινκ Photos που τελειώνουν σε =m18/=m22/=m37 παίζουν σαν κανονικό βίντεο, με πλήρη λειτουργία (ειδοποίηση επόμενου κ.λπ.). Για να μη τα βάζεις ένα-ένα: άνοιξε το άλμπουμ στο photos.google.com από υπολογιστή, πάτα F12 → Κονσόλα (Console), επικόλλησε αυτό και Enter (αν ζητήσει, πληκτρολόγησε πρώτα «allow pasting»). Σκρολάρει μόνο του ως το τέλος και αντιγράφει τη λίστα. Επικόλλησέ τη στο πλαίσιο επεισοδίων παραπάνω. Είναι δοκιμαστικό: αν εμφανίσει λάθος αριθμό ή σειρά, πες μου.</div>
+  <textarea rows="5" readonly onclick="this.select()">(async()=&gt;{
+const sc=[...document.querySelectorAll('*')].filter(e=&gt;e.scrollHeight&gt;e.clientHeight+200&amp;&amp;/auto|scroll/.test(getComputedStyle(e).overflowY)).sort((a,b)=&gt;b.scrollHeight-a.scrollHeight)[0]||document.scrollingElement;
+const seen=new Map(),R=/https:\/\/lh3\.googleusercontent\.com\/pw\/[\w-]+/,wait=ms=&gt;new Promise(r=&gt;setTimeout(r,ms));
+const grab=()=&gt;document.querySelectorAll('[style*="googleusercontent.com/pw/"],img[src*="googleusercontent.com/pw/"]').forEach(e=&gt;{const m=((e.getAttribute('style')||'')+(e.currentSrc||'')).match(R);if(m&amp;&amp;!seen.has(m[0]))seen.set(m[0],seen.size)});
+sc.scrollTo(0,0);await wait(800);
+for(let k=0;k&lt;3000;k++){grab();const b=sc.scrollTop;sc.scrollBy(0,500);await wait(300);if(sc.scrollTop===b&amp;&amp;k&gt;5)break}
+grab();
+const out=[...seen.keys()].map((u,i)=&gt;'Επεισόδιο '+(i+1)+' | '+u+'=m18').join('\n');
+console.log(seen.size+' αντικείμενα');try{copy(out)}catch(e){}console.log(out)})()</textarea>
+ </div>
+</section>
+
+<section id="prog" class="hide">
+ <div class="card"><div class="row"><input id="cn" placeholder="Όνομα καναλιού (π.χ. Alpha)"><input class="w" id="cl" placeholder="Logo λινκ (προαιρετικά)"><button class="b p" id="ca">Νέο κανάλι</button></div></div>
+ <div id="progl"></div>
+ <div class="card"><b>Backup (προγράμματα, σειρές, λινκς, logos)</b>
+ <div class="mu">Περιλαμβάνει κανάλια, ωράρια, σειρές/ταινίες με τα λινκ τους και τα logos. Τα αρχεία από δίσκο μπαίνουν ως όνομα· ξανασυνδέονται όταν διαλέξεις τον φάκελο.</div>
+ <div class="row"><button class="b p" id="ex">Εξαγωγή backup</button><label class="b">Άνοιγμα αρχείου <input type="file" id="bf" accept=".json,application/json" hidden></label></div>
+ <textarea id="io" rows="4" placeholder="Εδώ εμφανίζεται ή επικολλάς το backup"></textarea>
+ <div class="row"><button class="b" id="im">Εισαγωγή (προσθήκη)</button><button class="b" id="ir">Εισαγωγή (αντικατάσταση όλων)</button></div></div>
+</section>
+</main>
+<pre id="dbg" class="hide"></pre>
+<div id="dlg" class="hide"><div class="card" id="dbox"></div></div>
+<script>
+const $=s=>document.querySelector(s);
+let S={items:[],channels:[],cur:null};
+try{const r=localStorage.getItem('mytv');if(r)S=JSON.parse(r)}catch(e){}
+const IDB={db:null,async open(){return this.db||(this.db=await new Promise((res,rej)=>{const r=indexedDB.open('mytv',1);r.onupgradeneeded=()=>r.result.createObjectStore('k');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}))},
+ async get(k){const db=await this.open();return new Promise(res=>{const q=db.transaction('k').objectStore('k').get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>res(undefined)})},
+ async set(k,v){try{const db=await this.open();return await new Promise(res=>{const t=db.transaction('k','readwrite');t.objectStore('k').put(v,k);t.oncomplete=()=>res(true);t.onerror=()=>res(false)})}catch(e){return false}}};
+let svT;const flush=()=>{clearTimeout(svT);const d={...S,items:S.items.map(i=>i.local?{...i,url:''}:i)};IDB.set('S',d).then(ok=>{if(!ok)try{localStorage.setItem('mytv',JSON.stringify(d))}catch(e){}})};
+const save=()=>{clearTimeout(svT);svT=setTimeout(flush,300)};
+addEventListener('pagehide',flush);
+function dlg(msg,o){o=o||{};return new Promise(res=>{const d=$('#dlg'),b=$('#dbox');b.innerHTML='';b.append(el('p',{},msg));let i=null;if(o.input){i=el('input',{style:'width:100%',value:o.def||''});b.append(i)}
+ const done=v=>{d.classList.add('hide');res(v)};
+ const r=el('div',{class:'row'},el('button',{class:'b p',on:()=>done(o.input?i.value:true)},o.yes||'OK'));
+ if(o.no!==''){r.append(el('button',{class:'b',on:()=>done(o.input?null:false)},o.no||'Άκυρο'))}
+ b.append(r);d.classList.remove('hide');if(i)i.focus()})}
+const say=m=>dlg(m,{no:''});
+const uid=()=>Math.random().toString(36).slice(2,9);
+const item=id=>S.items.find(i=>i.id===id);
+function el(t,a,...k){const e=document.createElement(t);for(const x in a||{})x==='on'?Object.assign(e,{onclick:a[x]}):e.setAttribute(x,a[x]);k.flat().forEach(c=>e.append(c));return e}
+
+/* player */
+let VOL=1,MUTE=false;
+function embed(box,url,off,live,onend,lead){
+ box.querySelectorAll('video').forEach(o=>{o.dataset.x=1;o.pause();o.removeAttribute('src');o.load()});box.innerHTML='';off=Math.max(0,Math.floor(off||0));
+ if(!url){box.textContent='Ο δίσκος δεν είναι συνδεδεμένος — Βιβλιοθήκη → «Σύνδεση φακέλου» και διάλεξε ξανά τον ίδιο φάκελο';return}
+ let m=url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=)([\w-]+)/)||url.match(/[?&]id=([\w-]+)/);
+ if(/drive\.google\.com/.test(url)&&m){box.append(el('iframe',{src:'https://drive.google.com/file/d/'+m[1]+'/preview',allow:'autoplay;fullscreen',allowfullscreen:''}));return}
+ m=url.match(/mega\.(?:nz|io|co\.nz)\/(?:embed\/|file\/)([\w-]+)#([\w-]+)/)||url.match(/mega\.(?:nz|io|co\.nz)\/#!([\w-]+)!([\w-]+)/);
+ if(m){box.append(el('iframe',{src:'https://mega.nz/embed/'+m[1]+'#'+m[2],allow:'autoplay;fullscreen',allowfullscreen:''}));return}
+ m=url.match(/(?:youtu\.be\/|v=|embed\/)([\w-]{11})/);
+ if(m){box.append(el('iframe',{src:'https://www.youtube.com/embed/'+m[1]+'?autoplay=1&start='+off+(live?'&controls=0&disablekb=1':''),allow:'autoplay;fullscreen',allowfullscreen:''}));return}
+ const v=el('video',{src:url,autoplay:'',playsinline:''});v.addEventListener('error',()=>{if(v.dataset.x)return;if(live){playing='';osd('⚠ Δεν φορτώνει το βίντεο — νέα προσπάθεια σε λίγο')}else if(onend)onend()});if(!live)v.controls=true;else{v.disablePictureInPicture=true;v.addEventListener('pause',()=>{if(!v.ended&&v.isConnected&&!v.dataset.x)v.play()})}if(onend){let fd=0;const fire=()=>{if(!fd){fd=1;onend()}};v.addEventListener('ended',fire);v.addEventListener('timeupdate',()=>{if(lead&&v.duration>lead*1.5&&v.duration-v.currentTime<=lead)fire()})}v.volume=VOL;v.muted=MUTE;
+ v.addEventListener('loadedmetadata',()=>{if(off&&off<v.duration)v.currentTime=off});
+ box.append(v)}
+
+/* live */
+const mins=t=>{const[a,b]=t.split(':').map(Number);return a*60+b};
+const pad=n=>String(n).padStart(2,'0'),hm=m=>pad(Math.floor(m/60)%24)+':'+pad(Math.floor(m%60));
+const stopv=b=>{b.querySelectorAll('video').forEach(o=>{o.dataset.x=1;o.pause();o.removeAttribute('src');o.load()});b.innerHTML=''};
+const TOK=/^\d{1,2}:\d{2}$/;
+const asleep=()=>{const k=S.kid;if(!k||!k.on||!TOK.test(k.bed||'')||!TOK.test(k.wake||''))return false;const d=new Date(),n=d.getHours()*60+d.getMinutes(),b=mins(k.bed),w=mins(k.wake);return b>w?(n>=b||n<w):(n>=b&&n<w)};
+function ruleSlots(ch,date){const out=[];(ch.rules||[]).forEach(r=>{
+ const L=grp()[r.ser]||[];if(!L.length)return;const w=date.getDay();if(r.d&&!r.d.includes(w))return;
+ const st=new Date(r.from+'T00:00:00'),dd=new Date(date.getFullYear(),date.getMonth(),date.getDate());if(dd<st)return;
+ let cnt=0;if(r.mode!=='all'){for(let x=new Date(st),k=0;x<dd&&k<4000;x.setDate(x.getDate()+1),k++)if(!r.d||r.d.includes(x.getDay()))cnt++}
+ let m=mins(r.t);const i0=r.mode==='all'?0:cnt*r.n,num=r.mode==='all'?L.length:r.n;
+ for(let j=0;j<num;j++){let ix=i0+j;if(ix>=L.length){if(!r.loop)break;ix%=L.length}const it=L[ix];if(m>=1440)break;out.push({t:hm(m),item:it.id});m+=it.dur}});return out}
+function shfl(a,day){let s=day*7919+1;const r=()=>{s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296},b=[...a];for(let i=b.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[b[i],b[j]]=[b[j],b[i]]}return b}
+function slotsFor(ch,date){
+ if(ch.auto){const L=ch.auto.ser.map(n=>grp()[n]||[]),mx=Math.max(0,...L.map(a=>a.length)),seq=[];
+  for(let k=0;k<mx;k++)L.forEach(a=>{if(a[k])seq.push(a[k])});
+  if(!seq.length)return[];
+  const f=mins(ch.auto.from),t=mins(ch.auto.to),avg=seq.reduce((x,i)=>x+i.dur,0)/seq.length,K=Math.max(1,Math.ceil((t-f)/avg)),day=Math.floor((date.getTime()-date.getTimezoneOffset()*60000)/864e5),out=[];
+  const sq=ch.auto.rand?shfl(seq,day):seq;let m=f,j=0;while(m<t&&j<80){const i=sq[(ch.auto.rand?j:day*K+j)%sq.length];out.push({t:hm(m),item:i.id});m+=i.dur;j++}return out}
+ const w=date.getDay();return ch.slots.filter(s=>!s.d||s.d.includes(w)).concat(ruleSlots(ch,date))}
+function nowSlot(ch){
+ const d=new Date(),n=d.getHours()*60+d.getMinutes()+d.getSeconds()/60,by=a=>[...a].sort((p,q)=>mins(p.t)-mins(q.t));
+ const sl=by(slotsFor(ch,d));let cur=null,off=0;
+ for(const s of sl)if(mins(s.t)<=n)cur=s;
+ if(cur)off=n-mins(cur.t);else{const ys=by(slotsFor(ch,new Date(+d-864e5)));if(ys.length){cur=ys[ys.length-1];off=n+1440-mins(cur.t)}}
+ const it=cur&&item(cur.item),nxt=sl.find(s=>mins(s.t)>n)||by(slotsFor(ch,new Date(+d+864e5)))[0];
+ return{cur,it,off:off*60,ok:!!(it&&off<it.dur),nxt,end:cur&&it?hm(mins(cur.t)+it.dur):''}}
+function info(ch){const r=nowSlot(ch),nx=r.nxt&&item(r.nxt.item);return r.ok?r.it.title+' · έως '+r.end+(nx?'\nΜετά: '+r.nxt.t+' '+nx.title:''):'Κανένα πρόγραμμα αυτή την ώρα'}
+let chId=null,playing='';
+function tune(force){
+ const ch=S.channels.find(c=>c.id===chId);
+ const tv=$('#tv');
+ setBug(ch);
+ if(asleep()){if(playing!=='sleep'){playing='sleep';stopv(tv);tv.textContent='🌙 Ώρα για ύπνο — καληνύχτα!'}$('#now').textContent='';$('#next').textContent='
