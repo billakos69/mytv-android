@@ -74,6 +74,12 @@ class LocalServer(private val ctx: Context, port: Int) : NanoHTTPD("127.0.0.1", 
         }
     }
 
+    fun rescan() {
+        val root = prefs.getString("root", null)
+        val tree = prefs.getString("tree", null)
+        if (root != null) setRoot(File(root)) else if (tree != null) setTree(Uri.parse(tree))
+    }
+
     private fun ensure() {
         if (files.isEmpty() && scan?.isAlive != true) {
             prefs.getString("root", null)?.let { val f = File(it); if (f.exists()) setRoot(f) }
@@ -148,6 +154,8 @@ class LocalServer(private val ctx: Context, port: Int) : NanoHTTPD("127.0.0.1", 
 
     override fun serve(s: IHTTPSession): Response {
         val uri = s.uri
+        val host = (s.headers["host"] ?: "").substringBefore(":")
+        if (host != "localhost" && host != "127.0.0.1") return notFound()
         try {
             if (uri == "/" || uri == "/index.html") {
                 val r = newChunkedResponse(
@@ -187,12 +195,18 @@ class LocalServer(private val ctx: Context, port: Int) : NanoHTTPD("127.0.0.1", 
         var end = len - 1
         var part = false
         if (rh != null && rh.startsWith("bytes=")) {
-            val a = rh.substring(6).split("-")
-            start = a[0].toLongOrNull() ?: 0L
-            if (a.size > 1 && a[1].isNotEmpty()) end = minOf(a[1].toLong(), len - 1)
+            val a = rh.substring(6).split(",")[0].trim().split("-")
+            val s0 = a.getOrNull(0)?.toLongOrNull()
+            val e0 = a.getOrNull(1)?.toLongOrNull()
+            if (s0 == null && e0 != null) {
+                start = maxOf(0L, len - e0)
+            } else {
+                start = s0 ?: 0L
+                if (e0 != null) end = minOf(e0, len - 1)
+            }
             part = true
         }
-        if (start >= len) {
+        if (start >= len || end < start) {
             val r = newFixedLengthResponse(Response.Status.RANGE_NOT_SATISFIABLE, "text/plain", "")
             r.addHeader("Content-Range", "bytes */$len")
             return r
