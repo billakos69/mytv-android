@@ -3,7 +3,6 @@ package com.mytv.app
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
-import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -60,17 +59,42 @@ class MainActivity : Activity() {
                 if (needStoragePermission()) {
                     requestPermissions(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE), 2)
                 }
+                web.evaluateJavascript("window.browse&&window.browse('')", null)
+            }
+        }
+
+        @JavascriptInterface
+        fun pickSystem() {
+            runOnUiThread {
+                val i = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).addFlags(
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                        Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
+                )
+                if (i.resolveActivity(packageManager) == null) {
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Η συσκευή δεν έχει επιλογέα αρχείων.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    return@runOnUiThread
+                }
                 try {
-                    startActivityForResult(
-                        Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).addFlags(
-                            Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                                Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
-                        ), 1
-                    )
-                } catch (e: ActivityNotFoundException) {
-                    web.evaluateJavascript("window.browse&&window.browse('')", null)
+                    startActivityForResult(i, 1)
+                } catch (e: Exception) {
+                    Toast.makeText(this@MainActivity, "Σφάλμα: $e", Toast.LENGTH_LONG).show()
                 }
             }
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 2) {
+            web.evaluateJavascript("window.browse&&window.browse('')", null)
         }
     }
 
