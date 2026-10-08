@@ -98,16 +98,6 @@ class LocalServer(private val ctx: Context, port: Int) : NanoHTTPD("127.0.0.1", 
         else -> "application/octet-stream"
     }
 
-        private fun indexHtml(): String {
-        val b = ctx.assets.open("index.html").use { it.readBytes() }
-        val t = String(b, Charsets.UTF_8)
-        if (t.trimEnd().endsWith("</html>") && b.size > 30000) return t
-        return "<meta charset=utf-8><body style='background:#121214;color:#fff;font:28px sans-serif;padding:40px'>" +
-            "<h2>Το αρχείο index.html μέσα στην εφαρμογή είναι κομμένο</h2>" +
-            "<p>Μέγεθος: " + b.size + " bytes. Πρέπει να είναι περίπου 58000.</p>" +
-            "<p>Ανέβασε ξανά το πλήρες index.html στο GitHub (Add file → Upload files), όχι με επικόλληση.</p>"
-    }
-
     private fun notFound(): Response =
         newFixedLengthResponse(Response.Status.NOT_FOUND, "text/plain", "404")
 
@@ -159,7 +149,11 @@ class LocalServer(private val ctx: Context, port: Int) : NanoHTTPD("127.0.0.1", 
             .forEach { arr.put(JSONObject().put("name", it.name).put("path", it.absolutePath)) }
         val vids = setOf("mp4", "m4v", "webm", "mkv", "mov", "avi")
         val n = l.count { it.isFile && it.name.substringAfterLast('.', "").lowercase() in vids }
-        return JSONObject().put("path", path).put("parent", par).put("dirs", arr).put("videos", n)
+        val js = JSONArray()
+        l.filter { it.isFile && it.name.endsWith(".json", true) }
+            .sortedBy { it.name.lowercase() }
+            .forEach { js.put(it.name) }
+        return JSONObject().put("path", path).put("parent", par).put("dirs", arr).put("videos", n).put("jsons", js)
     }
 
     override fun serve(s: IHTTPSession): Response {
@@ -168,7 +162,9 @@ class LocalServer(private val ctx: Context, port: Int) : NanoHTTPD("127.0.0.1", 
         if (host != "localhost" && host != "127.0.0.1") return notFound()
         try {
             if (uri == "/" || uri == "/index.html") {
-                val r = newFixedLengthResponse(Response.Status.OK, "text/html; charset=utf-8", indexHtml())
+                val r = newChunkedResponse(
+                    Response.Status.OK, "text/html; charset=utf-8", ctx.assets.open("index.html")
+                )
                 r.addHeader("Cache-Control", "no-store")
                 return r
             }
@@ -178,6 +174,16 @@ class LocalServer(private val ctx: Context, port: Int) : NanoHTTPD("127.0.0.1", 
                 val arr = JSONArray()
                 for (p in files.keys) arr.put(JSONObject().put("path", p))
                 return json(JSONObject().put("files", arr))
+            }
+            if (uri == "/api/read") {
+                val p = s.parameters["path"]?.firstOrNull() ?: ""
+                val f = File(p)
+                if (f.isFile && p.endsWith(".json", true) && f.length() < 50_000_000L) {
+                    return newFixedLengthResponse(
+                        Response.Status.OK, "application/json; charset=utf-8", f.readText()
+                    )
+                }
+                return notFound()
             }
             if (uri == "/api/roots") return json(roots())
             if (uri == "/api/browse") return json(browse(s.parameters["path"]?.firstOrNull() ?: ""))
