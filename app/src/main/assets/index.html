@@ -134,7 +134,7 @@ function el(t,a,...k){const e=document.createElement(t);for(const x in a||{})x==
 let VOL=1,MUTE=false;
 function embed(box,url,off,live,onend,lead){
  box.querySelectorAll('video').forEach(o=>{o.dataset.x=1;o.pause();o.removeAttribute('src');o.load()});box.innerHTML='';off=Math.max(0,Math.floor(off||0));
- if(!url){box.textContent='Ο δίσκος δεν είναι συνδεδεμένος — Βιβλιοθήκη → «Σύνδεση φακέλου» και διάλεξε ξανά τον ίδιο φάκελο';return}
+ if(!url){box.textContent='Ο δίσκος δεν είναι συνδεδεμένος — πάτα OK (μενού) και διάλεξε «Σύνδεση δίσκου»';return}
  let m=url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=)([\w-]+)/)||url.match(/[?&]id=([\w-]+)/);
  if(/drive\.google\.com/.test(url)&&m){box.append(el('iframe',{src:'https://drive.google.com/file/d/'+m[1]+'/preview',allow:'autoplay;fullscreen',allowfullscreen:''}));return}
  m=url.match(/mega\.(?:nz|io|co\.nz)\/(?:embed\/|file\/)([\w-]+)#([\w-]+)/)||url.match(/mega\.(?:nz|io|co\.nz)\/#!([\w-]+)!([\w-]+)/);
@@ -327,7 +327,8 @@ async function importFiles(fs,loud,forceMode){const st=$('#fs');S.covers=S.cover
  for(const f of fs){if(!IMG.test(f.name)||!COV.test(f.name))continue;const p=f.webkitRelativePath.split('/');
   const ser=mode==='one'?(p.length===2?p[0]:null):(p.length===3?p[1]:null);
   if(ser&&!S.covers[ser]){const c=await rs(f);if(c)S.covers[ser]=c}}
- st.textContent='✓ '+meta.length+' βίντεο ('+(mode==='one'?'μία σειρά':'πολλές σειρές')+')';RM=mode;save();lib();prog();if(loud)say('✓ Συνδέθηκαν '+rl+' υπάρχοντα και προστέθηκαν '+(meta.length-rl)+' νέα βίντεο.');if(!$('#live').classList.contains('hide'))tune(true)}
+ st.textContent='✓ '+meta.length+' βίντεο ('+(mode==='one'?'μία σειρά':'πολλές σειρές')+')';if(!S.channels.length&&!S.autoCh){const ser=Object.keys(grp());if(ser.length){S.channels.push({id:uid(),name:'Παιδικά',slots:[],rules:[],auto:{ser,from:'07:00',to:'21:00',rand:false}});S.autoCh=1;chBtns()}}
+ RM=mode;save();lib();prog();if(loud)say('✓ Συνδέθηκαν '+rl+' υπάρχοντα και προστέθηκαν '+(meta.length-rl)+' νέα βίντεο.');if(!$('#live').classList.contains('hide'))tune(true)}
 
 $('#fd').onchange=e=>{const fs=[...e.target.files];e.target.value='';importFiles(fs,true)};
 async function fromServer(loud){try{const r=await (await fetch('/api/list')).json();
