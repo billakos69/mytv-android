@@ -14,6 +14,8 @@ import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
 import androidx.media3.common.VideoSize
+import androidx.media3.exoplayer.DefaultRenderersFactory
+import androidx.media3.exoplayer.ExoPlaybackException
 import androidx.media3.exoplayer.ExoPlayer
 import org.json.JSONObject
 
@@ -25,6 +27,7 @@ class NativePlayer(
     private val surface = SurfaceView(ctx)
     private var player: ExoPlayer? = null
     private var live = false
+    private var audioOff = false
     private val handler = Handler(Looper.getMainLooper())
 
     init {
@@ -48,7 +51,9 @@ class NativePlayer(
     fun play(url: String, startMs: Long, isLive: Boolean) {
         stop()
         live = isLive
-        val p = ExoPlayer.Builder(ctx).build()
+        audioOff = false
+        val rf = DefaultRenderersFactory(ctx).setEnableDecoderFallback(true)
+        val p = ExoPlayer.Builder(ctx, rf).build()
         p.trackSelectionParameters = p.trackSelectionParameters.buildUpon()
             .setPreferredAudioLanguages("el", "en")
             .build()
@@ -61,7 +66,29 @@ class NativePlayer(
             }
 
             override fun onPlayerError(error: PlaybackException) {
-                send("window.onNativeError&&window.onNativeError(" + JSONObject.quote(error.errorCodeName) + ")")
+                val ex = error as? ExoPlaybackException
+                val f = ex?.rendererFormat
+                val mime = f?.sampleMimeType ?: ""
+                if (mime.startsWith("audio/") && !audioOff) {
+                    audioOff = true
+                    p.trackSelectionParameters = p.trackSelectionParameters.buildUpon()
+                        .setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, true)
+                        .build()
+                    p.prepare()
+                    p.playWhenReady = true
+                    val w = "Ο ήχος ($mime) δεν υποστηρίζεται — παίζει χωρίς ήχο"
+                    send("window.onNativeWarn&&window.onNativeWarn(" + JSONObject.quote(w) + ")")
+                    return
+                }
+                val res = if (f != null && f.width > 0) f.width.toString() + "x" + f.height else ""
+                val cause = error.cause?.message ?: (error.cause?.javaClass?.simpleName ?: "")
+                val o = JSONObject()
+                    .put("code", error.errorCodeName)
+                    .put("mime", mime)
+                    .put("codecs", f?.codecs ?: "")
+                    .put("res", res)
+                    .put("cause", cause)
+                send("window.onNativeError&&window.onNativeError(" + o.toString() + ")")
             }
 
             override fun onVideoSizeChanged(videoSize: VideoSize) {
