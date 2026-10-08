@@ -22,6 +22,7 @@ class LocalServer(private val ctx: Context, port: Int) : NanoHTTPD("127.0.0.1", 
     @Volatile private var norm: Map<String, Entry> = emptyMap()
     @Volatile private var scan: Thread? = null
     private val prefs = ctx.getSharedPreferences("p", 0)
+    private val mkvCache = HashMap<String, MkvIndex?>()
 
     init {
         rescan()
@@ -133,6 +134,22 @@ class LocalServer(private val ctx: Context, port: Int) : NanoHTTPD("127.0.0.1", 
 
     private fun ensure() {
         if (files.isEmpty() && scan?.isAlive != true && rootList().isNotEmpty()) rescan()
+    }
+
+    private fun isMkv(n: String): Boolean = n.endsWith(".mkv", true) || n.endsWith(".webm", true)
+
+    private fun mkvIdx(e: Entry): MkvIndex? {
+        val f = e.file ?: return null
+        val k = f.absolutePath
+        synchronized(mkvCache) {
+            if (mkvCache.containsKey(k)) return mkvCache[k]
+        }
+        val ix = Mkv.index(f)
+        synchronized(mkvCache) {
+            if (mkvCache.size > 100) mkvCache.clear()
+            mkvCache[k] = ix
+        }
+        return ix
     }
 
     private fun mime(n: String): String = when (n.substringAfterLast('.', "").lowercase()) {
@@ -252,7 +269,9 @@ class LocalServer(private val ctx: Context, port: Int) : NanoHTTPD("127.0.0.1", 
             }
             if (uri == "/api/dur") {
                 scan?.join(120000)
-                val f = files[s.parameters["path"]?.firstOrNull() ?: ""]?.file
+                val de = files[s.parameters["path"]?.firstOrNull() ?: ""]
+                val f = de?.file
+                val mix = if (de != null && isMkv(de.name)) mkvIdx(de) else null
                 var sec = 0L
                 if (f != null) {
                     try {
@@ -263,7 +282,13 @@ class LocalServer(private val ctx: Context, port: Int) : NanoHTTPD("127.0.0.1", 
                     } catch (e: Exception) {
                     }
                 }
-                return json(JSONObject().put("sec", sec))
+                return json(JSONObject().put("sec", sec).put("cues", if (mix == null) JSONObject.NULL else mix.cues))
+            }
+            if (uri == "/api/shiftok") {
+                scan?.join(120000)
+                val se = files[s.parameters["path"]?.firstOrNull() ?: ""]
+                val six = if (se != null && isMkv(se.name)) mkvIdx(se) else null
+                return json(JSONObject().put("ok", six != null))
             }
             if (uri == "/api/roots") return json(roots())
             if (uri == "/api/browse") return json(browse(s.parameters["path"]?.firstOrNull() ?: ""))
@@ -275,6 +300,22 @@ class LocalServer(private val ctx: Context, port: Int) : NanoHTTPD("127.0.0.1", 
             if (uri.startsWith("/f/")) {
                 val key = uri.substring(3)
                 val e = files[key] ?: norm[Normalizer.normalize(key, Normalizer.Form.NFC)] ?: return notFound()
+                val tSec = s.parameters["t"]?.firstOrNull()?.toLongOrNull()
+                val ef = e.file
+                if (tSec != null && tSec > 0 && ef != null && isMkv(e.name)) {
+                    val ix = mkvIdx(e)
+                    if (ix != null) {
+                        val idx = Mkv.pick(ix, tSec * 1000)
+                        if (idx > 0) {
+                            val r = newFixedLengthResponse(
+                                Response.Status.OK, "video/x-matroska",
+                                Mkv.shifted(ef, ix, idx), Mkv.total(ef, ix, idx)
+                            )
+                            r.addHeader("Accept-Ranges", "none")
+                            return r
+                        }
+                    }
+                }
                 return stream(e, s)
             }
         } catch (e: Exception) {
