@@ -40,6 +40,7 @@ h3{margin:14px 0 4px;font-size:15px}
 .pc{display:none;position:absolute;left:50%;transform:translateX(-50%);bottom:20px;z-index:6;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;background:rgba(0,0,0,.72);padding:10px 14px;border-radius:12px}.ffs .pc{display:flex}.ffs .pc.hide{display:none}#pt{color:#fff;max-width:34vw;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:14px}#ld{display:none}
 body.nat,body.nat .tv,body.nat .tvw,body.nat .ffs{background:transparent!important}body.nat header,body.nat #lb,body.nat main>section{visibility:hidden}body.nat .ffs,body.nat .ffs *{visibility:visible}
 #dbox p{white-space:pre-line}
+#cu{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:45;color:#fff;font-size:24px;text-align:center;pointer-events:none}#cu.hide{display:none}
 .chs button{margin:0 6px 6px 0}
 </style></head><body>
 <header><b>📺 Η Τηλεόρασή μου</b>
@@ -59,7 +60,7 @@ body.nat,body.nat .tv,body.nat .tvw,body.nat .ffs{background:transparent!importa
 <section id="guide" class="hide"><div class="row"><button class="b" id="tt">📟 Teletext</button></div><div id="gl"></div><p class="mu">Πάτα ένα πρόγραμμα για να δεις το κανάλι.</p></section>
 
 <section id="lib" class="hide">
- <div id="tb" class="row"><input class="w" id="qs" placeholder="🔍 Αναζήτηση σειράς ή επεισοδίου"><button class="b" id="rnd">🎲 Τυχαίο επεισόδιο</button><button class="b" id="clr">🗑 Αφαίρεση όλων</button></div>
+ <div id="tb" class="row"><input class="w" id="qs" placeholder="🔍 Αναζήτηση σειράς ή επεισοδίου"><button class="b" id="rnd">🎲 Τυχαίο επεισόδιο</button><button class="b" id="clr">🗑 Αφαίρεση όλων</button><button class="b" id="nsb" style="display:none">⚠ Χωρίς μετάβαση</button></div>
  <div id="shelf"></div>
  <div id="ser" class="hide">
   <div class="row"><button class="b" id="bk">← Πίσω</button><b id="st" style="flex:1"></b><span id="sbt"></span><select id="ld" title="Πόσο νωρίς εμφανίζεται η ειδοποίηση για το επόμενο επεισόδιο"><option value="30">Επόμενο: 30″ πριν το τέλος</option><option value="60">1′ πριν</option><option value="120">2′ πριν</option><option value="150">2′30″ πριν</option><option value="180">3′ πριν</option></select><button class="b" id="sf" title="Πλήρης οθόνη">⛶</button><button class="b" id="sd">Διαγραφή σειράς</button></div>
@@ -114,11 +115,12 @@ console.log(seen.size+' αντικείμενα');try{copy(out)}catch(e){}console
 </section>
 </main>
 <pre id="dbg" class="hide"></pre>
+<div id="cu" class="hide"></div>
 <div id="dlg" class="hide"><div class="card" id="dbox"></div></div>
 <script>
 const $=s=>document.querySelector(s);
-let NAT=false,NATEND=null,NATLIVE=false,NS=null,NATURL='';
-function natStop(){if(NAT&&window.AndroidTV&&window.AndroidTV.stop)window.AndroidTV.stop();NAT=false;NATEND=null;NS=null;document.body.classList.remove('nat')}
+let NAT=false,NATEND=null,NATLIVE=false,NS=null,NATURL='',NATID=null;
+function natStop(){if(NAT&&window.AndroidTV&&window.AndroidTV.stop)window.AndroidTV.stop();NAT=false;NATEND=null;NS=null;document.body.classList.remove('nat');const cu=$('#cu');if(cu)cu.classList.add('hide')}
 let S={items:[],channels:[],cur:null};
 try{const r=localStorage.getItem('mytv');if(r)S=JSON.parse(r)}catch(e){}
 const IDB={db:null,async open(){return this.db||(this.db=await new Promise((res,rej)=>{const r=indexedDB.open('mytv',1);r.onupgradeneeded=()=>r.result.createObjectStore('k');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}))},
@@ -205,7 +207,7 @@ function tune(force){
  const r=nowSlot(ch);
  if(r.ok){
   const key=ch.id+r.cur.t+r.it.id;
-  if(force||playing!==key){const nw=!force;playing=key;embed(tv,r.it.url,r.off,true);if(nw)osd(info(ch),5000)}
+  if(force||playing!==key){const nw=!force;playing=key;NATID=r.it.id;embed(tv,r.it.url,r.off,true);if(nw)osd(info(ch),5000)}
   $('#now').textContent='▶ '+ch.name+' · '+r.it.title+(r.it.series?' ('+r.it.series+')':'')+' · από '+r.cur.t+' · συντονίστηκες '+Math.floor(r.off/60)+' λεπτά μέσα';
  }else{
   if(playing!=='off'+ch.id){playing='off'+ch.id;stopv(tv);tv.append(el('div',{class:'bars'},el('b',{},'Διάλειμμα — δεν παίζει κάτι αυτή την ώρα')));}
@@ -258,7 +260,7 @@ async function relinkAll(loud){const a=await dirs();let ok=0,pend=0;
  if(loud)say(a.length?'✓ Επανασυνδέθηκαν '+ok+' φάκελοι'+(pend?' ('+pend+' χρειάζονται άδεια — πάτα ξανά)':''):'Δεν έχει αποθηκευτεί φάκελος ακόμα.');return a.length}
 async function reconnect(){if(!(await relinkAll(true)))pickRoot()}
 function lib(){
- S.covers=S.covers||{};banner();
+ S.covers=S.covers||{};banner();const nsN=S.items.filter(i=>i.ns).length,nb=$('#nsb');nb.style.display=nsN?'':'none';nb.textContent='⚠ Χωρίς μετάβαση ('+nsN+')';
  S.fav=S.fav||{};
  const g=grp(),sh=$('#shelf'),q=($('#qs').value||'').trim().toLowerCase();sh.innerHTML='';
  $('#tb').classList.toggle('hide',!!openS);
@@ -279,12 +281,12 @@ function showS(k){
  openS=k;$('#shelf').classList.add('hide');$('#ser').classList.remove('hide');const stt=$('#st');stt.innerHTML='';stt.append(logo(k,'th'),' '+k);const hb=$('#sbt');hb.innerHTML='';imgBtns(k,lib).forEach(x=>hb.append(x));hb.append(el('button',{class:'b s',title:'Αγαπημένο',on:()=>{S.fav=S.fav||{};if(S.fav[k])delete S.fav[k];else S.fav[k]=1;save();showS(k)}},S.fav&&S.fav[k]?'★':'☆'));$('#tb').classList.add('hide');
  const E=$('#eps');E.innerHTML='';
  let ls=null;(grp()[k]||[]).forEach(i=>{if(i.season&&i.season!==ls)E.append(el('h3',{},i.season));ls=i.season;E.append(el('div',{class:'li'+(i.id===curId?' on':''),'data-id':i.id},
-  el('button',{class:'b',on:()=>playEp(i)},'▶'),logo('ep:'+i.id,'th'),el('span',{},i.title),imgBtns('ep:'+i.id,()=>showS(k)),el('span',{class:'mu',style:'flex:none'},i.dur+'′'),
+  el('button',{class:'b',on:()=>playEp(i)},'▶'),logo('ep:'+i.id,'th'),el('span',{},i.title+(i.ns?' ⚠':'')),imgBtns('ep:'+i.id,()=>showS(k)),el('span',{class:'mu',style:'flex:none'},i.dur+'′'),
   el('button',{class:'b',on:()=>{if(i.local)(S.removed=S.removed||[]).push(i.local);S.items=S.items.filter(x=>x.id!==i.id);S.channels.forEach(ch=>ch.slots=ch.slots.filter(s=>s.item!==i.id));save();lib();prog()}},'✕')))})}
 let curId=null,nxT=null,nxN=null,ifT=null;
 function cancelNx(){clearTimeout(ifT);clearInterval(nxT);nxT=null;nxN=null;$('#nx').classList.add('hide')}
 const AUTONEXT=false;
-function playEp(i){cancelNx();curId=i.id;const L=AUTONEXT?(S.lead||150):0;const R=(S.pos&&S.pos[i.id])||0,off=R>30&&R<i.dur*60-120?R:0;embed($('#tv2'),i.url,off,false,()=>{if(S.pos)delete S.pos[i.id];if(AUTONEXT)nextUp(i)},L);
+function playEp(i){cancelNx();curId=i.id;const L=AUTONEXT?(S.lead||150):0;const R=(S.pos&&S.pos[i.id])||0,off=R>30&&R<i.dur*60-120?R:0;NATID=i.id;embed($('#tv2'),i.url,off,false,()=>{if(S.pos)delete S.pos[i.id];if(AUTONEXT)nextUp(i)},L);
  const pv=$('#tv2 video');if(pv){let lt=0;pv.addEventListener('timeupdate',()=>{const t=Date.now();if(t-lt>10000&&pv.currentTime>5){lt=t;S.pos=S.pos||{};S.pos[i.id]=Math.floor(pv.currentTime);save()}})}
  if(AUTONEXT&&$('#tv2 iframe'))ifT=setTimeout(()=>nextUp(i),Math.max(10,i.dur*60-L)*1000);
  document.querySelectorAll('#eps .li').forEach(x=>x.classList.toggle('on',x.dataset.id===i.id));
@@ -393,6 +395,8 @@ window.onNativeError=j=>{let o={};try{o=typeof j==='string'?JSON.parse(j):j}catc
  const msg=(o.code||'?')+(mime?' · '+mime:'')+(o.codecs?' · '+o.codecs:'')+(o.res?' · '+o.res:'')+(o.cause?' · '+o.cause:'')+(path?'\n'+path:'')+(hint?'\n'+hint:'');
  if(NATLIVE){playing='';osd('⚠ '+msg,6000)}else{say('Σφάλμα αναπαραγωγής:\n'+msg)}};
 window.onNativeWarn=t=>{if(!$('#live').classList.contains('hide'))osd('⚠ '+t,5000);else{const c=S.items.find(x=>x.id===curId);$('#pt').textContent='⚠ '+t;setTimeout(()=>{if(c)$('#pt').textContent=c.title},4000)}};
+window.onNativeNoSeek=()=>{const it=S.items.find(x=>x.id===NATID);if(it&&!it.ns){it.ns=1;save();lib()}};
+window.onNativeCatch=(on,left)=>{const c=$('#cu');if(on){c.classList.remove('hide');c.textContent='⏩ Συγχρονισμός με το πρόγραμμα… ~'+left+'″'}else c.classList.add('hide')};
 window.onAudio=l=>{if(!$('#live').classList.contains('hide'))osd('🔊 '+l,3000);else{const c=S.items.find(x=>x.id===curId);$('#pt').textContent='🔊 '+l;setTimeout(()=>{if(c)$('#pt').textContent=c.title},2500)}};
 window.onNativeStopped=()=>{NAT=false;NS=null;document.body.classList.remove('nat');playing=''};
 window.onResumeApp=()=>{if(!$('#live').classList.contains('hide')){playing='';tune(true)}};
@@ -554,6 +558,7 @@ document.addEventListener('keydown',e=>{
  if(best){best.focus();best.scrollIntoView({block:'nearest',inline:'nearest'})}else if(!hz)window.scrollBy(0,sg*300);
  e.preventDefault()});
 $('#qs').oninput=()=>lib();
+$('#nsb').onclick=()=>{const l=S.items.filter(i=>i.ns);say(l.length+' αρχεία δεν επιτρέπουν μετάβαση στη μέση. Στο Live παίζουν με γρήγορη προώθηση μέχρι να συγχρονιστούν. Μόνιμη λύση: ξαναγράψε τα με ffmpeg (-c copy).\n'+l.slice(0,12).map(i=>'• '+(i.local||i.title)).join('\n')+(l.length>12?'\n… και '+(l.length-12)+' ακόμα':''))};
 $('#clr').onclick=async()=>{if(!S.items.length)return say('Η βιβλιοθήκη είναι ήδη άδεια.');
  if(!await dlg('Θα αφαιρεθούν ΟΛΕΣ οι σειρές και οι ταινίες ('+S.items.length+' επεισόδια) από τη βιβλιοθήκη. Τα αρχεία στον δίσκο ΔΕΝ διαγράφονται. Συνέχεια;',{yes:'Αφαίρεση όλων',no:'Άκυρο'}))return;
  stopv($('#tv2'));try{await fetch('/api/clearroot')}catch(e){}try{await IDB.set('dirs',[]);await IDB.set('dir',null)}catch(e){}
