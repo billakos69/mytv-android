@@ -168,7 +168,18 @@ function ruleSlots(ch,date){const out=[];(ch.rules||[]).forEach(r=>{
  let m=mins(r.t);const i0=r.mode==='all'?0:cnt*r.n,num=r.mode==='all'?L.length:r.n;
  for(let j=0;j<num;j++){let ix=i0+j;if(ix>=L.length){if(!r.loop)break;ix%=L.length}const it=L[ix];if(m>=1440)break;out.push({t:hm(m),item:it.id});m+=it.dur}});return out}
 function shfl(a,day){let s=day*7919+1;const r=()=>{s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296},b=[...a];for(let i=b.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[b[i],b[j]]=[b[j],b[i]]}return b}
+function loopSeq(ch){const L=ch.loop.ser.map(n=>grp()[n]||[]),seq=[];
+ if(L.length>1){const mx=Math.max(0,...L.map(a=>a.length));for(let k=0;k<mx;k++)L.forEach(a=>{if(a[k])seq.push(a[k])})}else if(L[0])seq.push(...L[0]);
+ return ch.loop.rand?shfl(seq,7):seq}
+function loopAt(ch,tms){const seq=loopSeq(ch);if(!seq.length)return null;const T=seq.reduce((x,i)=>x+i.dur*60,0);if(T<=0)return null;
+ let p=(((tms-ch.loop.a)/1000)%T+T)%T,i=0;for(;i<seq.length;i++){const d=seq[i].dur*60;if(p<d)break;p-=d}
+ i=Math.min(i,seq.length-1);return{seq,i,off:p,start:tms-p*1000}}
+function loopNow(ch){const r=loopAt(ch,Date.now());if(!r)return{cur:null,it:null,off:0,ok:false,nxt:null,end:''};
+ const it=r.seq[r.i],nx=r.seq[(r.i+1)%r.seq.length],ne=new Date(r.start+it.dur*60000),st=new Date(r.start),nm=x=>hm(x.getHours()*60+x.getMinutes());
+ return{cur:{t:nm(st),item:it.id},it,off:r.off,ok:true,nxt:{t:nm(ne),item:nx.id},end:nm(ne)}}
 function slotsFor(ch,date){
+ if(ch.loop){const out=[],day0=new Date(date.getFullYear(),date.getMonth(),date.getDate()).getTime(),r=loopAt(ch,day0);if(!r)return[];
+  let i=r.i,t=day0-r.off*1000,g=0;while(t<day0+864e5&&g++<600){const it=r.seq[i%r.seq.length],st=new Date(Math.max(t,day0));out.push({t:hm(st.getHours()*60+st.getMinutes()),item:it.id});t+=it.dur*60000;i++}return out}
  if(ch.auto){const L=ch.auto.ser.map(n=>grp()[n]||[]),mx=Math.max(0,...L.map(a=>a.length)),seq=[];
   for(let k=0;k<mx;k++)L.forEach(a=>{if(a[k])seq.push(a[k])});
   if(!seq.length)return[];
@@ -176,13 +187,14 @@ function slotsFor(ch,date){
   const sq=ch.auto.rand?shfl(seq,day):seq;let m=f,j=0;while(m<t&&j<80){const i=sq[(ch.auto.rand?j:day*K+j)%sq.length];out.push({t:hm(m),item:i.id});m+=i.dur;j++}return out}
  const w=date.getDay();return ch.slots.filter(s=>!s.d||s.d.includes(w)).concat(ruleSlots(ch,date))}
 function nowSlot(ch){
+ if(ch.loop)return loopNow(ch);
  const d=new Date(),n=d.getHours()*60+d.getMinutes()+d.getSeconds()/60,by=a=>[...a].sort((p,q)=>mins(p.t)-mins(q.t));
  const sl=by(slotsFor(ch,d));let cur=null,off=0;
  for(const s of sl)if(mins(s.t)<=n)cur=s;
  if(cur)off=n-mins(cur.t);else{const ys=by(slotsFor(ch,new Date(+d-864e5)));if(ys.length){cur=ys[ys.length-1];off=n+1440-mins(cur.t)}}
  const it=cur&&item(cur.item),nxt=sl.find(s=>mins(s.t)>n)||by(slotsFor(ch,new Date(+d+864e5)))[0];
  return{cur,it,off:off*60,ok:!!(it&&off<it.dur),nxt,end:cur&&it?hm(mins(cur.t)+it.dur):''}}
-function info(ch){const r=nowSlot(ch),nx=r.nxt&&item(r.nxt.item);return r.ok?r.it.title+' · έως '+r.end+(nx?'\nΜετά: '+r.nxt.t+' '+nx.title:''):'Κανένα πρόγραμμα αυτή την ώρα'}
+function info(ch){const r=nowSlot(ch),nx=r.nxt&&item(r.nxt.item);return r.ok?r.it.title+' · έως '+r.end+' · ξεκίνησε '+r.cur.t+' (+'+Math.floor(r.off/60)+'′'+pad(Math.floor(r.off%60))+'″)'+(nx?'\nΜετά: '+r.nxt.t+' '+nx.title:''):'Κανένα πρόγραμμα αυτή την ώρα'}
 let chId=null,playing='';
 function tune(force){
  const ch=S.channels.find(c=>c.id===chId);
@@ -440,6 +452,11 @@ function prog(){
   const c=el('div',{class:'card'});
   c.append(el('div',{class:'row'},el('b',{style:'flex:1'},logo('ch:'+ch.id,'lg','📡 '),ch.name),imgBtns('ch:'+ch.id,prog),
    el('button',{class:'b',on:async()=>{if(await dlg('Διαγραφή καναλιού;',{yes:'Διαγραφή'})){S.channels=S.channels.filter(x=>x.id!==ch.id);if(chId===ch.id)chId=null;save();prog();chBtns()}}},'Διαγραφή')));
+  if(ch.loop)c.append(el('div',{class:'row'},el('span',{style:'flex:1'},'🔁 Συνεχής επανάληψη: '+ch.loop.ser.join(' + ')+(ch.loop.rand?' · τυχαία σειρά':'')+' — τα υπόλοιπα ωράρια του καναλιού δεν ισχύουν όσο είναι ενεργή'),el('button',{class:'b',on:()=>{delete ch.loop;save();prog()}},'Σβήσιμο')));
+  const lsel=el('select',{});Object.keys(grp()).forEach(k=>lsel.append(el('option',{value:k},k)));const lrc=el('input',{type:'checkbox'});
+  c.append(el('div',{class:'row'},el('b',{},'🔁 Φάκελος σε επανάληψη:'),lsel,el('label',{class:'mu'},lrc,' τυχαία σειρά'),
+   el('button',{class:'b p',on:()=>{if(!lsel.value)return say('Πρόσθεσε πρώτα σειρά στη Βιβλιοθήκη');const n=new Date();ch.loop={ser:[lsel.value],rand:lrc.checked,a:new Date(n.getFullYear(),n.getMonth(),n.getDate()).getTime()};save();prog()}},'Ενεργοποίηση'),
+   el('button',{class:'b',on:()=>{if(!ch.loop||!lsel.value)return say('Ενεργοποίησε πρώτα την επανάληψη με έναν φάκελο.');if(!ch.loop.ser.includes(lsel.value))ch.loop.ser.push(lsel.value);save();prog()}},'+ Πρόσθεσε κι αυτόν')));
   const DN=['Κυρ','Δευ','Τρί','Τετ','Πέμ','Παρ','Σαβ'];
   ch.rules=ch.rules||[];
   ch.rules.forEach(r=>c.append(el('div',{class:'li'},el('span',{},'📅 '+r.t+' · '+r.ser+' · '+(r.mode==='all'?'όλη η σειρά από την αρχή':r.n+' επ./φορά, με συνέχεια'+(r.loop?' (ξανά από την αρχή στο τέλος)':' (έως το τέλος)'))+' · '+(r.d?r.d.map(x=>DN[x]).join(','):'κάθε μέρα')+' · από '+r.from),el('button',{class:'b',on:()=>{ch.rules=ch.rules.filter(x=>x!==r);save();prog()}},'✕'))));
