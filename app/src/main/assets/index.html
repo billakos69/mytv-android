@@ -119,8 +119,8 @@ console.log(seen.size+' αντικείμενα');try{copy(out)}catch(e){}console
 <div id="dlg" class="hide"><div class="card" id="dbox"></div></div>
 <script>
 const $=s=>document.querySelector(s);
-let NAT=false,NATEND=null,NATLIVE=false,NS=null,NATURL='',NATID=null;
-function natStop(){if(NAT&&window.AndroidTV&&window.AndroidTV.stop)window.AndroidTV.stop();NAT=false;NATEND=null;NS=null;document.body.classList.remove('nat');const cu=$('#cu');if(cu)cu.classList.add('hide')}
+let NAT=false,NATEND=null,NATLIVE=false,NS=null,NATURL='',NATID=null,NATOFF=0,NATSHIFT=false,NATTOK=0;
+function natStop(){NATTOK++;NATSHIFT=false;if(NAT&&window.AndroidTV&&window.AndroidTV.stop)window.AndroidTV.stop();NAT=false;NATEND=null;NS=null;document.body.classList.remove('nat');const cu=$('#cu');if(cu)cu.classList.add('hide')}
 let S={items:[],channels:[],cur:null};
 try{const r=localStorage.getItem('mytv');if(r)S=JSON.parse(r)}catch(e){}
 const IDB={db:null,async open(){return this.db||(this.db=await new Promise((res,rej)=>{const r=indexedDB.open('mytv',1);r.onupgradeneeded=()=>r.result.createObjectStore('k');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}))},
@@ -146,7 +146,11 @@ function embed(box,url,off,live,onend,lead){
  if(NAT)natStop();
  box.querySelectorAll('video').forEach(o=>{o.dataset.x=1;o.pause();o.removeAttribute('src');o.load()});box.innerHTML='';off=Math.max(0,Math.floor(off||0));
  if(!url){box.textContent='Ο δίσκος δεν είναι συνδεδεμένος — πάτα OK (μενού) και διάλεξε «Σύνδεση δίσκου»';return}
- if(window.ATVF&&window.AndroidTV&&window.AndroidTV.play&&url.charAt(0)==='/'){NAT=true;NATURL=url;NATLIVE=!!live;NATEND=onend||null;document.body.classList.add('nat');window.AndroidTV.play(location.origin+url,off*1000,!!live);return}
+ if(window.ATVF&&window.AndroidTV&&window.AndroidTV.play&&url.charAt(0)==='/'){NAT=true;NATURL=url;NATOFF=off;NATSHIFT=false;NATLIVE=!!live;NATEND=onend||null;document.body.classList.add('nat');
+  const it=S.items.find(x=>x.id===NATID),tok=++NATTOK,A=window.AndroidTV,full=()=>{if(tok===NATTOK&&NAT)A.play(location.origin+url,off*1000,!!live)};
+  if(it&&it.ns&&it.local&&off>3){
+   fetch('/api/shiftok?path='+encodeURIComponent(it.local)).then(r=>r.json()).then(j=>{if(tok!==NATTOK||!NAT)return;if(j.ok){NATSHIFT=true;A.play(location.origin+url+'?t='+off,0,!!live)}else full()}).catch(full);return}
+  A.play(location.origin+url,off*1000,!!live);return}
  let m=url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=)([\w-]+)/)||url.match(/[?&]id=([\w-]+)/);
  if(/drive\.google\.com/.test(url)&&m){box.append(el('iframe',{src:'https://drive.google.com/file/d/'+m[1]+'/preview',allow:'autoplay;fullscreen',allowfullscreen:''}));return}
  m=url.match(/mega\.(?:nz|io|co\.nz)\/(?:embed\/|file\/)([\w-]+)#([\w-]+)/)||url.match(/mega\.(?:nz|io|co\.nz)\/#!([\w-]+)!([\w-]+)/);
@@ -385,10 +389,11 @@ async function fromServer(loud){try{const r=await (await fetch('/api/list')).jso
  const KS=new Set(r.files.map(f=>f.path));S.items.forEach(i=>{if(i.local&&i.url&&!KS.has(i.local))i.url=''});
  await importFiles(fs,loud);durQueue();cfList()}catch(e){if(loud)say('Δεν μπόρεσα να διαβάσω τον δίσκο.')}}
 window.onFolder=()=>fromServer(true);
-window.onNative=o=>{NS=o;if(curId&&o.dur>0){const it=S.items.find(x=>x.id===curId);if(it&&it.dq){it.dur=Math.max(1,Math.ceil(o.dur/60));delete it.dq;save()}}if(!NATLIVE&&curId&&o.pos>5){const t=Date.now();if(t-(window.onNative.t||0)>10000){window.onNative.t=t;S.pos=S.pos||{};S.pos[curId]=Math.floor(o.pos);save()}}};
+window.onNative=o=>{NS=o;if(curId&&o.dur>0){const it=S.items.find(x=>x.id===curId);if(it&&it.dq){it.dur=Math.max(1,Math.ceil(o.dur/60));delete it.dq;save()}}if(!NATLIVE&&curId&&o.pos>5){const t=Date.now();if(t-(window.onNative.t||0)>10000){window.onNative.t=t;S.pos=S.pos||{};S.pos[curId]=Math.floor(o.pos+(NATSHIFT?NATOFF:0));save()}}};
 window.onNativeEnd=()=>{if(NATEND)NATEND()};
 const healDisk=()=>{fetch('/api/rescan').then(()=>setTimeout(()=>fromServer(false),2000)).catch(()=>{})};
-window.onNativeError=j=>{let o={};try{o=typeof j==='string'?JSON.parse(j):j}catch(e){o={code:String(j)}}
+window.onNativeError=j=>{if(NATSHIFT&&window.AndroidTV){NATSHIFT=false;window.AndroidTV.play(location.origin+NATURL,NATOFF*1000,NATLIVE);return}
+let o={};try{o=typeof j==='string'?JSON.parse(j):j}catch(e){o={code:String(j)}}
  const mime=o.mime||'';let path='';try{path=o.uri?decodeURIComponent(o.uri.replace(/^[^]*?\/f\//,'')):''}catch(e){path=o.uri||''}
  let hint=/hevc|h265/i.test(mime)?(/^(hvc1|hev1)\.2/.test(o.codecs||'')?'Βίντεο HEVC 10-bit: η τηλεόραση μάλλον δεν το υποστηρίζει.':'Βίντεο HEVC: η τηλεόραση ίσως δεν το υποστηρίζει.'):(/^audio\//.test(mime)?'Ο ήχος ('+mime+') δεν υποστηρίζεται από την τηλεόραση.':'');
  if(/404/.test((o.cause||'')+(o.code||''))){hint='Το αρχείο δεν βρέθηκε στον δίσκο — γίνεται νέα σάρωση. Αν δεν παίξει, πάτα «Δοκίμασε ξανά» στο μενού.';healDisk()}
@@ -402,8 +407,9 @@ window.onNativeStopped=()=>{NAT=false;NS=null;document.body.classList.remove('na
 window.onResumeApp=()=>{if(!$('#live').classList.contains('hide')){playing='';tune(true)}};
 let DQB=false;
 async function durQueue(){if(DQB)return;DQB=true;try{let n=0;for(;;){const todo=S.items.filter(i=>i.dq&&i.url&&i.local);if(!todo.length)break;
- await Promise.all(todo.slice(0,2).map(async i=>{const sc=await durSrv(i.local);if(sc>0)i.dur=Math.max(1,Math.ceil(sc/60));delete i.dq}));
+ await Promise.all(todo.slice(0,2).map(async i=>{const j=await durInfo(i.local),sc=j.sec||0;if(sc>0)i.dur=Math.max(1,Math.ceil(sc/60));if(j.cues===false)i.ns=1;delete i.dq}));
  if(++n%5===0)save()}save()}finally{DQB=false}}
+const durInfo=async k=>{try{return await (await fetch('/api/dur?path='+encodeURIComponent(k))).json()}catch(e){return{sec:0}}};
 const durSrv=async k=>{try{const j=await (await fetch('/api/dur?path='+encodeURIComponent(k))).json();return j.sec||0}catch(e){return 0}};
 async function browse(path,mode){
  const d=$('#dlg'),b=$('#dbox');b.innerHTML='';d.classList.remove('hide');
