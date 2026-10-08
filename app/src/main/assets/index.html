@@ -388,9 +388,13 @@ function timeSel(v){const [h,m]=(v||'00:00').split(':').map(Number),H=el('select
  const w=el('span',{class:'ts'},H,el('b',{},' : '),M);
  Object.defineProperty(w,'value',{get:()=>H.value+':'+M.value});return w}
 function numSel(){const x=el('select',{title:'Επεισόδια ανά φορά'});for(let i=1;i<=12;i++)x.append(el('option',{value:String(i)},String(i)));return x}
+let progCh=null;
 function prog(){
  const P=$('#progl');P.innerHTML='';
+ const cur=S.channels.find(x=>x.id===progCh)||S.channels[0];
+ if(S.channels.length>1){const bar=el('div',{class:'card row'},el('b',{},'Διάλεξε κανάλι:'));S.channels.forEach((x,i)=>bar.append(el('button',{class:'b'+(x===cur?' p':''),on:()=>{progCh=x.id;prog()}},(i+1)+' · '+x.name)));P.append(bar)}
  S.channels.forEach(ch=>{
+  if(ch!==cur)return;
   const c=el('div',{class:'card'});
   c.append(el('div',{class:'row'},el('b',{style:'flex:1'},logo('ch:'+ch.id,'lg','📡 '),ch.name),imgBtns('ch:'+ch.id,prog),
    el('button',{class:'b',on:async()=>{if(await dlg('Διαγραφή καναλιού;',{yes:'Διαγραφή'})){S.channels=S.channels.filter(x=>x.id!==ch.id);if(chId===ch.id)chId=null;save();prog();chBtns()}}},'Διαγραφή')));
@@ -420,7 +424,7 @@ function prog(){
   c.append(adv);
   c.append(el('div',{class:'mu'},'Τα ωράρια επαναλαμβάνονται κάθε εβδομάδα, στις ημέρες που διαλέγεις.'));
   P.append(c)})}
-$('#ca').onclick=()=>{const n=$('#cn').value.trim();if(!n)return;const id=uid();S.channels.push({id,name:n,slots:[]});S.covers=S.covers||{};if($('#cl').value.trim())S.covers['ch:'+id]=$('#cl').value.trim();$('#cn').value='';$('#cl').value='';save();prog();chBtns()};
+$('#ca').onclick=()=>{const n=$('#cn').value.trim();if(!n)return;const id=uid();S.channels.push({id,name:n,slots:[]});progCh=id;S.covers=S.covers||{};if($('#cl').value.trim())S.covers['ch:'+id]=$('#cl').value.trim();$('#cn').value='';$('#cl').value='';save();prog();chBtns()};
 const bk=()=>JSON.stringify({v:2,items:S.items.map(i=>i.local?{...i,url:''}:i),channels:S.channels,covers:S.covers||{}});
 $('#ex').onclick=async()=>{const d=bk();$('#io').value=d;S.lastBackup=Date.now();save();let D=null;try{D=window.claude?await window.claude.use('downloads'):null}catch(e){}
  if(D){try{await D.save({filename:'tv-backup.json',data:d});return}catch(e){if(e&&e.code==='declined')return}}
