@@ -39,6 +39,7 @@ h3{margin:14px 0 4px;font-size:15px}
 #dbg{position:fixed;top:8px;left:8px;z-index:90;background:rgba(0,0,0,.85);color:#3f3;font:14px/1.3 monospace;padding:8px;border-radius:6px;pointer-events:none;margin:0}
 .pc{display:none;position:absolute;left:50%;transform:translateX(-50%);bottom:20px;z-index:6;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;background:rgba(0,0,0,.72);padding:10px 14px;border-radius:12px}.ffs .pc{display:flex}.ffs .pc.hide{display:none}#pt{color:#fff;max-width:34vw;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:14px}#ld{display:none}
 body.nat,body.nat .tv,body.nat .tvw,body.nat .ffs{background:transparent!important}body.nat header,body.nat #lb,body.nat main>section{visibility:hidden}body.nat .ffs,body.nat .ffs *{visibility:visible}
+#dbox p{white-space:pre-line}
 .chs button{margin:0 6px 6px 0}
 </style></head><body>
 <header><b>📺 Η Τηλεόρασή μου</b>
@@ -365,7 +366,11 @@ async function fromServer(loud){try{const r=await (await fetch('/api/list')).jso
 window.onFolder=()=>fromServer(true);
 window.onNative=o=>{NS=o;if(!NATLIVE&&curId&&o.pos>5){const t=Date.now();if(t-(window.onNative.t||0)>10000){window.onNative.t=t;S.pos=S.pos||{};S.pos[curId]=Math.floor(o.pos);save()}}};
 window.onNativeEnd=()=>{if(NATEND)NATEND()};
-window.onNativeError=c=>{if(NATLIVE){playing='';osd('⚠ Δεν παίζει το βίντεο ('+c+') — νέα προσπάθεια σε λίγο',5000)}else{$('#pt').textContent='⚠ Σφάλμα αναπαραγωγής ('+c+')'}};
+window.onNativeError=j=>{let o={};try{o=typeof j==='string'?JSON.parse(j):j}catch(e){o={code:String(j)}}
+ const mime=o.mime||'',hint=/hevc|h265/i.test(mime)?(/^(hvc1|hev1)\.2/.test(o.codecs||'')?'Βίντεο HEVC 10-bit: η τηλεόραση μάλλον δεν το υποστηρίζει.':'Βίντεο HEVC: η τηλεόραση ίσως δεν το υποστηρίζει.'):(/^audio\//.test(mime)?'Ο ήχος ('+mime+') δεν υποστηρίζεται από την τηλεόραση.':'');
+ const msg=(o.code||'?')+(mime?' · '+mime:'')+(o.codecs?' · '+o.codecs:'')+(o.res?' · '+o.res:'')+(o.cause?' · '+o.cause:'')+(hint?'\n'+hint:'');
+ if(NATLIVE){playing='';osd('⚠ '+msg,6000)}else{say('Σφάλμα αναπαραγωγής:\n'+msg)}};
+window.onNativeWarn=t=>{if(!$('#live').classList.contains('hide'))osd('⚠ '+t,5000);else{const c=S.items.find(x=>x.id===curId);$('#pt').textContent='⚠ '+t;setTimeout(()=>{if(c)$('#pt').textContent=c.title},4000)}};
 window.onAudio=l=>{if(!$('#live').classList.contains('hide'))osd('🔊 '+l,3000);else{const c=S.items.find(x=>x.id===curId);$('#pt').textContent='🔊 '+l;setTimeout(()=>{if(c)$('#pt').textContent=c.title},2500)}};
 window.onNativeStopped=()=>{NAT=false;NS=null;document.body.classList.remove('nat');playing=''};
 window.onResumeApp=()=>{if(!$('#live').classList.contains('hide')){playing='';tune(true)}};
