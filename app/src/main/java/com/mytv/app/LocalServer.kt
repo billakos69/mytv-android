@@ -13,24 +13,28 @@ import org.json.JSONObject
 import java.io.File
 import java.io.FileInputStream
 import java.io.InputStream
+import java.text.Normalizer
 
 class LocalServer(private val ctx: Context, port: Int) : NanoHTTPD("127.0.0.1", port) {
     class Entry(val name: String, val len: () -> Long, val open: () -> InputStream?, val file: File? = null)
 
     @Volatile private var files: Map<String, Entry> = emptyMap()
+    @Volatile private var norm: Map<String, Entry> = emptyMap()
     @Volatile private var scan: Thread? = null
     private val prefs = ctx.getSharedPreferences("p", 0)
 
     init {
-        val root = prefs.getString("root", null)
-        val tree = prefs.getString("tree", null)
-        if (root != null) setRoot(File(root)) else if (tree != null) setTree(Uri.parse(tree))
+        rescan()
     }
 
     private fun startScan(block: () -> Map<String, Entry>) {
         val t = Thread {
             try {
-                files = block()
+                val m = block()
+                val nm = HashMap<String, Entry>()
+                for ((k, v) in m) nm[Normalizer.normalize(k, Normalizer.Form.NFC)] = v
+                files = m
+                norm = nm
             } catch (e: Exception) {
             }
         }
@@ -38,23 +42,51 @@ class LocalServer(private val ctx: Context, port: Int) : NanoHTTPD("127.0.0.1", 
         t.start()
     }
 
-    fun setRoot(dir: File) {
-        prefs.edit().putString("root", dir.absolutePath).remove("tree").apply()
-        startScan {
-            val m = HashMap<String, Entry>()
-            walkFile(dir, if (dir.name.isEmpty()) "Disk" else dir.name, m)
-            m
+    private fun rootList(): MutableList<String> {
+        val a = ArrayList<String>()
+        val js = prefs.getString("roots", null)
+        if (js != null) {
+            try {
+                val arr = JSONArray(js)
+                for (i in 0 until arr.length()) a.add(arr.getString(i))
+            } catch (e: Exception) {
+            }
+        } else {
+            prefs.getString("root", null)?.let { a.add(it) }
         }
+        return a
+    }
+
+    private fun saveRoots(a: List<String>) {
+        prefs.edit().putString("roots", JSONArray(a).toString()).remove("root").apply()
+    }
+
+    fun addRoot(dir: File) {
+        val a = rootList()
+        if (!a.contains(dir.absolutePath)) a.add(dir.absolutePath)
+        saveRoots(a)
+        prefs.edit().remove("tree").apply()
+        rescan()
+    }
+
+    fun removeRoot(p: String) {
+        val a = rootList()
+        a.remove(p)
+        saveRoots(a)
+        rescan()
+    }
+
+    fun clearRoots() {
+        saveRoots(emptyList())
+        prefs.edit().remove("tree").apply()
+        files = emptyMap()
+        norm = emptyMap()
     }
 
     fun setTree(u: Uri) {
-        prefs.edit().putString("tree", u.toString()).remove("root").apply()
-        startScan {
-            val m = HashMap<String, Entry>()
-            val root = DocumentFile.fromTreeUri(ctx, u)
-            if (root != null) walkDoc(root, root.name ?: "Disk", m)
-            m
-        }
+        saveRoots(emptyList())
+        prefs.edit().putString("tree", u.toString()).apply()
+        rescan()
     }
 
     private fun walkFile(d: File, path: String, m: MutableMap<String, Entry>) {
@@ -76,15 +108,31 @@ class LocalServer(private val ctx: Context, port: Int) : NanoHTTPD("127.0.0.1", 
     }
 
     fun rescan() {
-        val root = prefs.getString("root", null)
+        val roots = rootList()
         val tree = prefs.getString("tree", null)
-        if (root != null) setRoot(File(root)) else if (tree != null) setTree(Uri.parse(tree))
+        startScan {
+            val m = HashMap<String, Entry>()
+            val used = HashSet<String>()
+            for (r in roots) {
+                val d = File(r)
+                var name = if (d.name.isEmpty()) "Disk" else d.name
+                var n = 2
+                while (!used.add(name)) {
+                    name = d.name + " (" + n + ")"
+                    n++
+                }
+                walkFile(d, name, m)
+            }
+            if (roots.isEmpty() && tree != null) {
+                val root = DocumentFile.fromTreeUri(ctx, Uri.parse(tree))
+                if (root != null) walkDoc(root, root.name ?: "Disk", m)
+            }
+            m
+        }
     }
 
     private fun ensure() {
-        if (files.isEmpty() && scan?.isAlive != true) {
-            prefs.getString("root", null)?.let { val f = File(it); if (f.exists()) setRoot(f) }
-        }
+        if (files.isEmpty() && scan?.isAlive != true && rootList().isNotEmpty()) rescan()
     }
 
     private fun mime(n: String): String = when (n.substringAfterLast('.', "").lowercase()) {
@@ -191,9 +239,16 @@ class LocalServer(private val ctx: Context, port: Int) : NanoHTTPD("127.0.0.1", 
                 return json(JSONObject().put("ok", true))
             }
             if (uri == "/api/clearroot") {
-                prefs.edit().remove("root").remove("tree").apply()
-                files = emptyMap()
+                clearRoots()
                 return json(JSONObject().put("ok", true))
+            }
+            if (uri == "/api/connected") {
+                return json(JSONObject().put("roots", JSONArray(rootList())))
+            }
+            if (uri == "/api/removeroot") {
+                val p = s.parameters["path"]?.firstOrNull()
+                if (p != null) removeRoot(p)
+                return json(JSONObject().put("ok", p != null))
             }
             if (uri == "/api/dur") {
                 scan?.join(120000)
@@ -214,11 +269,12 @@ class LocalServer(private val ctx: Context, port: Int) : NanoHTTPD("127.0.0.1", 
             if (uri == "/api/browse") return json(browse(s.parameters["path"]?.firstOrNull() ?: ""))
             if (uri == "/api/setroot") {
                 val p = s.parameters["path"]?.firstOrNull()
-                if (p != null) setRoot(File(p))
+                if (p != null) addRoot(File(p))
                 return json(JSONObject().put("ok", p != null))
             }
             if (uri.startsWith("/f/")) {
-                val e = files[uri.substring(3)] ?: return notFound()
+                val key = uri.substring(3)
+                val e = files[key] ?: norm[Normalizer.normalize(key, Normalizer.Form.NFC)] ?: return notFound()
                 return stream(e, s)
             }
         } catch (e: Exception) {
