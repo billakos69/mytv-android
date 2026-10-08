@@ -28,6 +28,8 @@ class NativePlayer(
     private var player: ExoPlayer? = null
     private var live = false
     private var audioOff = false
+    private var want = 0L
+    private var checked = false
     private val handler = Handler(Looper.getMainLooper())
 
     init {
@@ -52,6 +54,8 @@ class NativePlayer(
         stop()
         live = isLive
         audioOff = false
+        want = startMs
+        checked = false
         val rf = DefaultRenderersFactory(ctx).setEnableDecoderFallback(true)
         val p = ExoPlayer.Builder(ctx, rf).build()
         p.trackSelectionParameters = p.trackSelectionParameters.buildUpon()
@@ -62,6 +66,17 @@ class NativePlayer(
             override fun onPlaybackStateChanged(playbackState: Int) {
                 if (playbackState == Player.STATE_ENDED) {
                     send("window.onNativeEnd&&window.onNativeEnd()")
+                }
+                if (playbackState == Player.STATE_READY && !checked) {
+                    checked = true
+                    if (want > 3000) {
+                        if (!p.isCurrentMediaItemSeekable) {
+                            val w = "Το αρχείο δεν επιτρέπει μετάβαση στη μέση — παίζει από την αρχή"
+                            send("window.onNativeWarn&&window.onNativeWarn(" + JSONObject.quote(w) + ")")
+                        } else if (Math.abs(p.currentPosition - want) > 3000) {
+                            p.seekTo(want)
+                        }
+                    }
                 }
             }
 
