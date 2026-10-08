@@ -3,19 +3,15 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
-val ks = rootProject.file("debug.keystore")
-
 android {
     namespace = "com.mytv.app"
     compileSdk = 34
     signingConfigs {
-        if (ks.exists()) {
-            getByName("debug") {
-                storeFile = ks
-                storePassword = "android"
-                keyAlias = "androiddebugkey"
-                keyPassword = "android"
-            }
+        getByName("debug") {
+            storeFile = rootProject.file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
         }
     }
     defaultConfig {
