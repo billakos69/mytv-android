@@ -18,8 +18,8 @@ android {
         applicationId = "com.mytv.app"
         minSdk = 24
         targetSdk = 29
-        versionCode = 4
-        versionName = "1.4"
+        versionCode = 5
+        versionName = "1.5"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -31,4 +31,5 @@ android {
 dependencies {
     implementation("androidx.documentfile:documentfile:1.0.1")
     implementation("org.nanohttpd:nanohttpd:2.3.1")
+    implementation("androidx.media3:media3-exoplayer:1.3.1")
 }
