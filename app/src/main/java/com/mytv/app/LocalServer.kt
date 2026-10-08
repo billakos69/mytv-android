@@ -1,6 +1,7 @@
 package com.mytv.app
 
 import android.content.Context
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -14,7 +15,7 @@ import java.io.FileInputStream
 import java.io.InputStream
 
 class LocalServer(private val ctx: Context, port: Int) : NanoHTTPD("127.0.0.1", port) {
-    class Entry(val name: String, val len: () -> Long, val open: () -> InputStream?)
+    class Entry(val name: String, val len: () -> Long, val open: () -> InputStream?, val file: File? = null)
 
     @Volatile private var files: Map<String, Entry> = emptyMap()
     @Volatile private var scan: Thread? = null
@@ -61,7 +62,7 @@ class LocalServer(private val ctx: Context, port: Int) : NanoHTTPD("127.0.0.1", 
         for (f in list) {
             val p = "$path/${f.name}"
             if (f.isDirectory) walkFile(f, p, m)
-            else m[p] = Entry(f.name, { f.length() }, { FileInputStream(f) })
+            else m[p] = Entry(f.name, { f.length() }, { java.io.BufferedInputStream(FileInputStream(f), 1 shl 20) }, f)
         }
     }
 
@@ -184,6 +185,30 @@ class LocalServer(private val ctx: Context, port: Int) : NanoHTTPD("127.0.0.1", 
                     )
                 }
                 return notFound()
+            }
+            if (uri == "/api/rescan") {
+                rescan()
+                return json(JSONObject().put("ok", true))
+            }
+            if (uri == "/api/clearroot") {
+                prefs.edit().remove("root").remove("tree").apply()
+                files = emptyMap()
+                return json(JSONObject().put("ok", true))
+            }
+            if (uri == "/api/dur") {
+                scan?.join(120000)
+                val f = files[s.parameters["path"]?.firstOrNull() ?: ""]?.file
+                var sec = 0L
+                if (f != null) {
+                    try {
+                        val r = MediaMetadataRetriever()
+                        r.setDataSource(f.absolutePath)
+                        sec = (r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L) / 1000
+                        r.release()
+                    } catch (e: Exception) {
+                    }
+                }
+                return json(JSONObject().put("sec", sec))
             }
             if (uri == "/api/roots") return json(roots())
             if (uri == "/api/browse") return json(browse(s.parameters["path"]?.firstOrNull() ?: ""))
