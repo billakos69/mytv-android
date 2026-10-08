@@ -88,6 +88,7 @@ class NativePlayer(
                     .put("codecs", f?.codecs ?: "")
                     .put("res", res)
                     .put("cause", cause)
+                    .put("uri", p.currentMediaItem?.localConfiguration?.uri?.toString() ?: "")
                 send("window.onNativeError&&window.onNativeError(" + o.toString() + ")")
             }
 
