@@ -10,6 +10,7 @@ import android.widget.FrameLayout
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
+import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
@@ -30,6 +31,9 @@ class NativePlayer(
     private var audioOff = false
     private var want = 0L
     private var checked = false
+    private var catching = false
+    private var catchStart = 0L
+    private var tick = 0
     private val handler = Handler(Looper.getMainLooper())
 
     init {
@@ -40,6 +44,21 @@ class NativePlayer(
     private val ticker = object : Runnable {
         override fun run() {
             val p = player ?: return
+            if (catching) {
+                val pos = p.currentPosition
+                val tooLong = System.currentTimeMillis() - catchStart > 240000L
+                if (pos >= want - 500 || tooLong) {
+                    endCatch(p)
+                } else {
+                    tick++
+                    if (tick % 5 == 0) {
+                        val left = ((want - pos) / 8000L).coerceAtLeast(1L)
+                        send("window.onNativeCatch&&window.onNativeCatch(true," + left + ")")
+                    }
+                    handler.postDelayed(this, 200)
+                    return
+                }
+            }
             val o = JSONObject()
                 .put("pos", p.currentPosition / 1000)
                 .put("dur", if (p.duration > 0) p.duration / 1000 else 0L)
@@ -50,12 +69,21 @@ class NativePlayer(
         }
     }
 
+    private fun endCatch(p: ExoPlayer) {
+        catching = false
+        p.playbackParameters = PlaybackParameters(1f)
+        p.volume = 1f
+        surface.visibility = View.VISIBLE
+        send("window.onNativeCatch&&window.onNativeCatch(false,0)")
+    }
+
     fun play(url: String, startMs: Long, isLive: Boolean) {
         stop()
         live = isLive
         audioOff = false
         want = startMs
         checked = false
+        catching = false
         val rf = DefaultRenderersFactory(ctx).setEnableDecoderFallback(true)
         val p = ExoPlayer.Builder(ctx, rf).build()
         p.trackSelectionParameters = p.trackSelectionParameters.buildUpon()
@@ -71,8 +99,16 @@ class NativePlayer(
                     checked = true
                     if (want > 3000) {
                         if (!p.isCurrentMediaItemSeekable) {
-                            val w = "Το αρχείο δεν επιτρέπει μετάβαση στη μέση — παίζει από την αρχή"
-                            send("window.onNativeWarn&&window.onNativeWarn(" + JSONObject.quote(w) + ")")
+                            catching = true
+                            catchStart = System.currentTimeMillis()
+                            tick = 0
+                            p.volume = 0f
+                            p.playbackParameters = PlaybackParameters(8f)
+                            surface.visibility = View.INVISIBLE
+                            send("window.onNativeNoSeek&&window.onNativeNoSeek()")
+                            send("window.onNativeCatch&&window.onNativeCatch(true," + (want / 8000L) + ")")
+                            handler.removeCallbacks(ticker)
+                            handler.post(ticker)
                         } else if (Math.abs(p.currentPosition - want) > 3000) {
                             p.seekTo(want)
                         }
