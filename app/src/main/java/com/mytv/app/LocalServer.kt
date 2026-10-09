@@ -288,7 +288,7 @@ class LocalServer(private val ctx: Context, port: Int) : NanoHTTPD("127.0.0.1", 
                 scan?.join(120000)
                 val se = files[s.parameters["path"]?.firstOrNull() ?: ""]
                 val six = if (se != null && isMkv(se.name)) mkvIdx(se) else null
-                return json(JSONObject().put("ok", six != null))
+                return json(JSONObject().put("ok", six != null).put("cues", if (six == null) JSONObject.NULL else six.cues))
             }
             if (uri == "/api/roots") return json(roots())
             if (uri == "/api/browse") return json(browse(s.parameters["path"]?.firstOrNull() ?: ""))
