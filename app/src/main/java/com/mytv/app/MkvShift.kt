@@ -22,6 +22,9 @@ object Mkv {
     private const val CLUSTER = 0x1F43B675L
     private const val TIMECODE = 0xE7L
     private const val CUES = 0x1C53BB6BL
+    private const val SEEKHEAD = 0x114D9B74L
+    private const val SEEK = 0x4DBBL
+    private const val SEEKID = 0x53ABL
 
     private fun readId(r: RandomAccessFile): Long {
         val b = r.read()
@@ -90,7 +93,8 @@ object Mkv {
         val segEnd = if (ss >= 0) minOf(seg + ss, r.length()) else r.length()
         var scale = 1_000_000L
         var first = -1L
-        var cues = false
+        var cuesBefore = false
+        var seekCues = false
         val offs = ArrayList<Long>()
         val tcPos = ArrayList<Long>()
         val tcLen = ArrayList<Int>()
@@ -119,8 +123,34 @@ object Mkv {
                     if (id2 == SCALE) scale = readUInt(r, s2.toInt())
                     p2 = d2 + s2
                 }
+            } else if (id == SEEKHEAD) {
+                var p4 = ds
+                val e4 = ds + sz
+                while (p4 < e4) {
+                    r.seek(p4)
+                    val id4 = readId(r)
+                    val s4 = readSize(r)
+                    if (id4 < 0 || s4 < 0) break
+                    val d4 = r.filePointer
+                    if (id4 == SEEK) {
+                        var p5 = d4
+                        val e5 = d4 + s4
+                        while (p5 < e5) {
+                            r.seek(p5)
+                            val id5 = readId(r)
+                            val s5 = readSize(r)
+                            if (id5 < 0 || s5 < 0) break
+                            val d5 = r.filePointer
+                            if (id5 == SEEKID && s5 <= 4) {
+                                if (readUInt(r, s5.toInt()) == CUES) seekCues = true
+                            }
+                            p5 = d5 + s5
+                        }
+                    }
+                    p4 = d4 + s4
+                }
             } else if (id == CUES) {
-                cues = true
+                if (first < 0) cuesBefore = true
             } else if (id == CLUSTER) {
                 if (first < 0) first = pos
                 var p3 = ds
@@ -154,7 +184,7 @@ object Mkv {
             IntArray(n) { tcLen[it] },
             LongArray(n) { raw[it] },
             LongArray(n) { raw[it] * scale / 1_000_000L },
-            cues
+            cuesBefore || seekCues
         )
     }
 
