@@ -148,8 +148,8 @@ function embed(box,url,off,live,onend,lead){
  if(!url){box.textContent='Ο δίσκος δεν είναι συνδεδεμένος — πάτα OK (μενού) και διάλεξε «Σύνδεση δίσκου»';return}
  if(window.ATVF&&window.AndroidTV&&window.AndroidTV.play&&url.charAt(0)==='/'){NAT=true;NATURL=url;NATOFF=off;NATSHIFT=false;NATLIVE=!!live;NATEND=onend||null;document.body.classList.add('nat');
   const it=S.items.find(x=>x.id===NATID),tok=++NATTOK,A=window.AndroidTV,full=()=>{if(tok===NATTOK&&NAT)A.play(location.origin+url,off*1000,!!live)};
-  if(it&&it.ns&&it.local&&off>3){
-   fetch('/api/shiftok?path='+encodeURIComponent(it.local)).then(r=>r.json()).then(j=>{if(tok!==NATTOK||!NAT)return;if(j.ok){NATSHIFT=true;A.play(location.origin+url+'?t='+off,0,!!live)}else full()}).catch(full);return}
+  if(it&&it.local&&off>3&&(it.ns||/\.(mkv|webm)$/i.test(it.local))){
+   fetch('/api/shiftok?path='+encodeURIComponent(it.local)).then(r=>r.json()).then(j=>{if(tok!==NATTOK||!NAT)return;if(j.ok&&j.cues===false){if(!it.ns){it.ns=1;save()}NATSHIFT=true;A.play(location.origin+url+'?t='+off,0,!!live)}else full()}).catch(full);return}
   A.play(location.origin+url,off*1000,!!live);return}
  let m=url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=)([\w-]+)/)||url.match(/[?&]id=([\w-]+)/);
  if(/drive\.google\.com/.test(url)&&m){box.append(el('iframe',{src:'https://drive.google.com/file/d/'+m[1]+'/preview',allow:'autoplay;fullscreen',allowfullscreen:''}));return}
