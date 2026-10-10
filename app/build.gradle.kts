@@ -18,8 +18,8 @@ android {
         applicationId = "com.mytv.app"
         minSdk = 24
         targetSdk = 29
-        versionCode = 10
-        versionName = "1.10"
+        versionCode = 11
+        versionName = "1.11"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
