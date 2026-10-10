@@ -6,6 +6,38 @@ import java.io.InputStream
 import java.io.RandomAccessFile
 import java.io.SequenceInputStream
 
+class BR(private val raf: RandomAccessFile) {
+    private val buf = ByteArray(8192)
+    private var bufStart = 0L
+    private var bufLen = 0
+    private var pos = 0L
+    val filePointer: Long get() = pos
+
+    fun length(): Long = raf.length()
+
+    fun seek(p: Long) {
+        pos = p
+    }
+
+    fun read(): Int {
+        if (pos < bufStart || pos >= bufStart + bufLen) {
+            raf.seek(pos)
+            val n = raf.read(buf, 0, buf.size)
+            if (n <= 0) return -1
+            bufStart = pos
+            bufLen = n
+        }
+        val b = buf[(pos - bufStart).toInt()].toInt() and 0xFF
+        pos++
+        return b
+    }
+
+    fun skipBytes(n: Int): Int {
+        pos += n
+        return n
+    }
+}
+
 class MkvIndex(
     val first: Long,
     val offs: LongArray,
@@ -46,7 +78,7 @@ object Mkv {
     private const val TAGS = 0x1254C367L
     private const val MAX_HEADER = 64L * 1024 * 1024
 
-    private fun readId(r: RandomAccessFile): Long {
+    private fun readId(r: BR): Long {
         val b = r.read()
         if (b < 0) return -1
         var len = 1
@@ -65,7 +97,7 @@ object Mkv {
         return v
     }
 
-    private fun readSize(r: RandomAccessFile): Long {
+    private fun readSize(r: BR): Long {
         val b = r.read()
         if (b < 0) return -2
         var len = 1
@@ -86,7 +118,7 @@ object Mkv {
         return if (ones) -1 else v
     }
 
-    private fun readUInt(r: RandomAccessFile, n: Int): Long {
+    private fun readUInt(r: BR, n: Int): Long {
         var v = 0L
         for (i in 0 until n) v = (v shl 8) or r.read().toLong()
         return v
@@ -95,14 +127,14 @@ object Mkv {
     fun index(f: File): MkvIndex? {
         var result: MkvIndex? = null
         try {
-            RandomAccessFile(f, "r").use { r -> result = build(r) }
+            RandomAccessFile(f, "r").use { raf -> result = build(BR(raf)) }
         } catch (e: Exception) {
             result = null
         }
         return result
     }
 
-    private fun build(r: RandomAccessFile): MkvIndex? {
+    private fun build(r: BR): MkvIndex? {
         if (readId(r) != EBML) return null
         val hs = readSize(r)
         if (hs < 0) return null
