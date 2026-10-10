@@ -307,12 +307,19 @@ class LocalServer(private val ctx: Context, port: Int) : NanoHTTPD("127.0.0.1", 
                     if (ix != null) {
                         val idx = Mkv.pick(ix, tSec * 1000)
                         if (idx > 0) {
-                            val r = newFixedLengthResponse(
-                                Response.Status.OK, "video/x-matroska",
-                                Mkv.shifted(ef, ix, idx), Mkv.total(ef, ix, idx)
-                            )
-                            r.addHeader("Accept-Ranges", "none")
-                            return r
+                            val st = try {
+                                Mkv.shifted(ef, ix, idx)
+                            } catch (ex: Exception) {
+                                null
+                            }
+                            if (st != null) {
+                                val r = newFixedLengthResponse(
+                                    Response.Status.OK, "video/x-matroska",
+                                    st, Mkv.total(ef, ix, idx)
+                                )
+                                r.addHeader("Accept-Ranges", "none")
+                                return r
+                            }
                         }
                     }
                 }
