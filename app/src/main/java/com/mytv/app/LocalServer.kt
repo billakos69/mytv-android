@@ -23,6 +23,7 @@ class LocalServer(private val ctx: Context, port: Int) : NanoHTTPD("127.0.0.1", 
     @Volatile private var scan: Thread? = null
     private val prefs = ctx.getSharedPreferences("p", 0)
     private val mkvCache = HashMap<String, MkvIndex?>()
+    private val mp4Cache = HashMap<String, Mp4Index?>()
 
     init {
         rescan()
@@ -148,6 +149,23 @@ class LocalServer(private val ctx: Context, port: Int) : NanoHTTPD("127.0.0.1", 
         synchronized(mkvCache) {
             if (mkvCache.size > 100) mkvCache.clear()
             mkvCache[k] = ix
+        }
+        return ix
+    }
+
+    private fun isMp4(n: String): Boolean =
+        n.endsWith(".mp4", true) || n.endsWith(".m4v", true) || n.endsWith(".mov", true)
+
+    private fun mp4Idx(e: Entry): Mp4Index? {
+        val f = e.file ?: return null
+        val k = f.absolutePath
+        synchronized(mp4Cache) {
+            if (mp4Cache.containsKey(k)) return mp4Cache[k]
+        }
+        val ix = Mp4.index(f)
+        synchronized(mp4Cache) {
+            if (mp4Cache.size > 100) mp4Cache.clear()
+            mp4Cache[k] = ix
         }
         return ix
     }
@@ -288,7 +306,18 @@ class LocalServer(private val ctx: Context, port: Int) : NanoHTTPD("127.0.0.1", 
                 scan?.join(120000)
                 val se = files[s.parameters["path"]?.firstOrNull() ?: ""]
                 val six = if (se != null && isMkv(se.name)) mkvIdx(se) else null
-                return json(JSONObject().put("ok", six != null).put("cues", if (six == null) JSONObject.NULL else six.cues))
+                if (six != null) {
+                    return json(JSONObject().put("ok", true).put("cues", six.cues))
+                }
+                val mix = if (se != null && isMp4(se.name)) mp4Idx(se) else null
+                if (mix != null) {
+                    return json(JSONObject().put("ok", true).put("cues", JSONObject.NULL))
+                }
+                val sf = se?.file
+                return json(
+                    JSONObject().put("ok", false).put("cues", JSONObject.NULL)
+                        .put("boxes", if (sf != null && isMp4(se?.name ?: "")) Mp4.boxesOf(sf) else "")
+                )
             }
             if (uri == "/api/roots") return json(roots())
             if (uri == "/api/browse") return json(browse(s.parameters["path"]?.firstOrNull() ?: ""))
@@ -316,6 +345,27 @@ class LocalServer(private val ctx: Context, port: Int) : NanoHTTPD("127.0.0.1", 
                                 val r = newFixedLengthResponse(
                                     Response.Status.OK, "video/x-matroska",
                                     st, Mkv.total(ef, ix, idx)
+                                )
+                                r.addHeader("Accept-Ranges", "none")
+                                return r
+                            }
+                        }
+                    }
+                }
+                if (tSec != null && tSec > 0 && ef != null && isMp4(e.name)) {
+                    val mx = mp4Idx(e)
+                    if (mx != null) {
+                        val midx = Mp4.pick(mx, tSec * 1000)
+                        if (midx > 0) {
+                            val st = try {
+                                Mp4.shifted(ef, mx, midx)
+                            } catch (ex: Exception) {
+                                null
+                            }
+                            if (st != null) {
+                                val r = newFixedLengthResponse(
+                                    Response.Status.OK, "video/mp4",
+                                    st, Mp4.total(ef, mx, midx)
                                 )
                                 r.addHeader("Accept-Ranges", "none")
                                 return r
