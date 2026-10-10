@@ -392,7 +392,7 @@ window.onFolder=()=>fromServer(true);
 window.onNative=o=>{NS=o;if(curId&&o.dur>0){const it=S.items.find(x=>x.id===curId);if(it&&it.dq){it.dur=Math.max(1,Math.ceil(o.dur/60));delete it.dq;save()}}if(!NATLIVE&&curId&&o.pos>5){const t=Date.now();if(t-(window.onNative.t||0)>10000){window.onNative.t=t;S.pos=S.pos||{};S.pos[curId]=Math.floor(o.pos+(NATSHIFT?NATOFF:0));save()}}};
 window.onNativeEnd=()=>{if(NATEND)NATEND()};
 const healDisk=()=>{fetch('/api/rescan').then(()=>setTimeout(()=>fromServer(false),2000)).catch(()=>{})};
-window.onNativeError=j=>{if(NATSHIFT&&window.AndroidTV){NATSHIFT=false;window.AndroidTV.play(location.origin+NATURL,NATOFF*1000,NATLIVE);return}
+window.onNativeError=j=>{if(NATSHIFT&&window.AndroidTV){NATSHIFT=false;let e0={};try{e0=typeof j==='string'?JSON.parse(j):j}catch(x){}NATDBG+=' · ΣΦΑΛΜΑ shift: '+(e0.code||'?')+' | '+(e0.cause||'')+(e0.mime?' | '+e0.mime:'')+(e0.codecs?' '+e0.codecs:'');window.AndroidTV.play(location.origin+NATURL,NATOFF*1000,NATLIVE);return}
 let o={};try{o=typeof j==='string'?JSON.parse(j):j}catch(e){o={code:String(j)}}
  const mime=o.mime||'';let path='';try{path=o.uri?decodeURIComponent(o.uri.replace(/^[^]*?\/f\//,'')):''}catch(e){path=o.uri||''}
  let hint=/hevc|h265/i.test(mime)?(/^(hvc1|hev1)\.2/.test(o.codecs||'')?'Βίντεο HEVC 10-bit: η τηλεόραση μάλλον δεν το υποστηρίζει.':'Βίντεο HEVC: η τηλεόραση ίσως δεν το υποστηρίζει.'):(/^audio\//.test(mime)?'Ο ήχος ('+mime+') δεν υποστηρίζεται από την τηλεόραση.':'');
