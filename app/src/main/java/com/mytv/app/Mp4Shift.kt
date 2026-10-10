@@ -36,7 +36,7 @@ object Mp4 {
         return String(c)
     }
 
-    private fun ri(r: RandomAccessFile): Int {
+    private fun ri(r: BR): Int {
         val a = r.read()
         val b = r.read()
         val c = r.read()
@@ -45,11 +45,11 @@ object Mp4 {
         return (a shl 24) or (b shl 16) or (c shl 8) or d
     }
 
-    private fun rl(r: RandomAccessFile): Long = (ri(r).toLong() shl 32) or (ri(r).toLong() and 0xFFFFFFFFL)
+    private fun rl(r: BR): Long = (ri(r).toLong() shl 32) or (ri(r).toLong() and 0xFFFFFFFFL)
 
     private class Box(val type: Int, val start: Long, val dataStart: Long, val end: Long)
 
-    private fun box(r: RandomAccessFile, pos: Long, limit: Long): Box? {
+    private fun box(r: BR, pos: Long, limit: Long): Box? {
         if (pos + 8 > limit) return null
         r.seek(pos)
         var size = ri(r).toLong() and 0xFFFFFFFFL
@@ -70,7 +70,7 @@ object Mp4 {
     fun index(f: File): Mp4Index? {
         var result: Mp4Index? = null
         try {
-            RandomAccessFile(f, "r").use { r -> result = build(r, f.length()) }
+            RandomAccessFile(f, "r").use { raf -> result = build(BR(raf), f.length()) }
         } catch (e: Exception) {
             result = null
         }
@@ -80,7 +80,8 @@ object Mp4 {
     fun boxesOf(f: File): String {
         val sb = StringBuilder()
         try {
-            RandomAccessFile(f, "r").use { r ->
+            RandomAccessFile(f, "r").use { raf ->
+                val r = BR(raf)
                 var pos = 0L
                 val len = f.length()
                 var n = 0
@@ -96,7 +97,7 @@ object Mp4 {
         return sb.toString()
     }
 
-    private fun build(r: RandomAccessFile, len: Long): Mp4Index? {
+    private fun build(r: BR, len: Long): Mp4Index? {
         val tsMap = HashMap<Int, Long>()
         val trexFlags = HashMap<Int, Int>()
         var videoTrack = -1
