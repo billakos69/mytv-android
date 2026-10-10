@@ -142,6 +142,10 @@ class NativePlayer(
                     .put("uri", p.currentMediaItem?.localConfiguration?.uri?.toString() ?: "")
                 send("window.onNativeError&&window.onNativeError(" + o.toString() + ")")
             }
+            
+            override fun onRenderedFirstFrame() {
+                   send("window.onNativeFirst&&window.onNativeFirst()")
+               }
 
             override fun onVideoSizeChanged(videoSize: VideoSize) {
                 fit(videoSize.width, videoSize.height, videoSize.pixelWidthHeightRatio)
