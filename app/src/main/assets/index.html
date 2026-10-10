@@ -119,7 +119,7 @@ console.log(seen.size+' αντικείμενα');try{copy(out)}catch(e){}console
 <div id="dlg" class="hide"><div class="card" id="dbox"></div></div>
 <script>
 const $=s=>document.querySelector(s);
-let NAT=false,NATEND=null,NATLIVE=false,NS=null,NATURL='',NATID=null,NATOFF=0,NATSHIFT=false,NATTOK=0,NATDBG='';
+let NAT=false,NATEND=null,NATLIVE=false,NS=null,NATURL='',NATID=null,NATOFF=0,NATSHIFT=false,NATTOK=0,NATDBG='',NATCATCH=false;
 function natStop(){NATTOK++;NATSHIFT=false;if(NAT&&window.AndroidTV&&window.AndroidTV.stop)window.AndroidTV.stop();NAT=false;NATEND=null;NS=null;document.body.classList.remove('nat');const cu=$('#cu');if(cu)cu.classList.add('hide')}
 let S={items:[],channels:[],cur:null};
 try{const r=localStorage.getItem('mytv');if(r)S=JSON.parse(r)}catch(e){}
@@ -146,7 +146,7 @@ function embed(box,url,off,live,onend,lead){
  if(NAT)natStop();
  box.querySelectorAll('video').forEach(o=>{o.dataset.x=1;o.pause();o.removeAttribute('src');o.load()});box.innerHTML='';off=Math.max(0,Math.floor(off||0));
  if(!url){box.textContent='Ο δίσκος δεν είναι συνδεδεμένος — πάτα OK (μενού) και διάλεξε «Σύνδεση δίσκου»';return}
- if(window.ATVF&&window.AndroidTV&&window.AndroidTV.play&&url.charAt(0)==='/'){NAT=true;NATURL=url;NATOFF=off;NATSHIFT=false;NATLIVE=!!live;NATEND=onend||null;document.body.classList.add('nat');
+ if(window.ATVF&&window.AndroidTV&&window.AndroidTV.play&&url.charAt(0)==='/'){NAT=true;NATURL=url;NATOFF=off;NATSHIFT=false;NATCATCH=false;NATLIVE=!!live;NATEND=onend||null;document.body.classList.add('nat');{const cu=$('#cu');cu.textContent='⏳ Φόρτωση…';cu.classList.remove('hide')}
   const it=S.items.find(x=>x.id===NATID),tok=++NATTOK,A=window.AndroidTV,full=()=>{if(tok===NATTOK&&NAT)A.play(location.origin+url,off*1000,!!live)};
   if(it&&it.local&&off>3&&(it.ns||/\.(mkv|webm|mp4|m4v|mov)$/i.test(it.local))){
    fetch('/api/shiftok?path='+encodeURIComponent(it.local)).then(r=>r.json()).then(j=>{if(tok!==NATTOK||!NAT)return;NATDBG=(/\.[a-z0-9]+$/i.exec(it.local)||[''])[0]+' · ευρετήριο:'+j.cues+' · ns:'+(it.ns?1:0)+' · shift:';if(j.ok&&(live||j.cues===false||it.ns)){if(j.cues===false&&!it.ns){it.ns=1;save()}NATDBG+='ναι';NATSHIFT=true;A.play(location.origin+url+'?t='+off,0,!!live)}else{NATDBG+='όχι (ok:'+j.ok+')'+(j.boxes?' · boxes:'+j.boxes:'');full()}}).catch(()=>{NATDBG='σφάλμα κλήσης shiftok';full()});return}
@@ -211,7 +211,7 @@ function tune(force){
  const r=nowSlot(ch);
  if(r.ok){
   const key=ch.id+r.cur.t+r.it.id;
-  if(force||playing!==key){const nw=!force;playing=key;NATID=r.it.id;embed(tv,r.it.url,r.off,true);if(nw)osd(info(ch),5000)}
+  if(force||playing!==key){const nw=!force;playing=key;NATID=r.it.id;embed(tv,r.it.url,r.off,true);{const nx=r.nxt&&item(r.nxt.item);if(ATV&&nx&&nx.local)fetch('/api/shiftok?path='+encodeURIComponent(nx.local)).catch(()=>{})}if(nw)osd(info(ch),5000)}
   $('#now').textContent='▶ '+ch.name+' · '+r.it.title+(r.it.series?' ('+r.it.series+')':'')+' · από '+r.cur.t+' · συντονίστηκες '+Math.floor(r.off/60)+' λεπτά μέσα';
  }else{
   if(playing!=='off'+ch.id){playing='off'+ch.id;stopv(tv);tv.append(el('div',{class:'bars'},el('b',{},'Διάλειμμα — δεν παίζει κάτι αυτή την ώρα')));}
@@ -401,7 +401,8 @@ let o={};try{o=typeof j==='string'?JSON.parse(j):j}catch(e){o={code:String(j)}}
  if(NATLIVE){playing='';osd('⚠ '+msg,6000)}else{say('Σφάλμα αναπαραγωγής:\n'+msg)}};
 window.onNativeWarn=t=>{if(!$('#live').classList.contains('hide'))osd('⚠ '+t,5000);else{const c=S.items.find(x=>x.id===curId);$('#pt').textContent='⚠ '+t;setTimeout(()=>{if(c)$('#pt').textContent=c.title},4000)}};
 window.onNativeNoSeek=()=>{const it=S.items.find(x=>x.id===NATID);if(it&&!it.ns){it.ns=1;save();lib()}};
-window.onNativeCatch=(on,left)=>{const c=$('#cu');if(on){c.classList.remove('hide');c.textContent='⏩ Συγχρονισμός με το πρόγραμμα… ~'+left+'″'+(NATDBG?'\n['+NATDBG+']':'')}else c.classList.add('hide')};
+window.onNativeFirst=()=>{if(!NATCATCH)$('#cu').classList.add('hide')};
+window.onNativeCatch=(on,left)=>{NATCATCH=!!on;const c=$('#cu');if(on){c.classList.remove('hide');c.textContent='⏩ Συγχρονισμός με το πρόγραμμα… ~'+left+'″'+(NATDBG?'\n['+NATDBG+']':'')}else c.classList.add('hide')};
 window.onAudio=l=>{if(!$('#live').classList.contains('hide'))osd('🔊 '+l,3000);else{const c=S.items.find(x=>x.id===curId);$('#pt').textContent='🔊 '+l;setTimeout(()=>{if(c)$('#pt').textContent=c.title},2500)}};
 window.onNativeStopped=()=>{NAT=false;NS=null;document.body.classList.remove('nat');playing=''};
 window.onResumeApp=()=>{if(!$('#live').classList.contains('hide')){playing='';tune(true)}};
