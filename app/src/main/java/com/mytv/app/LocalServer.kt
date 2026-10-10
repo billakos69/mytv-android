@@ -290,6 +290,7 @@ class LocalServer(private val ctx: Context, port: Int) : NanoHTTPD("127.0.0.1", 
                 val de = files[s.parameters["path"]?.firstOrNull() ?: ""]
                 val f = de?.file
                 val mix = if (de != null && isMkv(de.name)) mkvIdx(de) else null
+                                   if (de != null && isMp4(de.name)) mp4Idx(de)
                 var sec = 0L
                 if (f != null) {
                     try {
