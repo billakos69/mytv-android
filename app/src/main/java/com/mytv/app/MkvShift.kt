@@ -393,7 +393,7 @@ object Mkv {
 
 class ClusterStream(
     f: File,
-    private val start: Long,
+    start: Long,
     private val pos: LongArray,
     private val len: IntArray,
     private val nv: LongArray
@@ -402,19 +402,16 @@ class ClusterStream(
     private val end = f.length()
     private var cur = start
     private var pi = 0
+    private val buf = ByteArray(512 * 1024)
+    private var bp = 0
+    private var bl = 0
 
-    override fun read(): Int {
-        val one = ByteArray(1)
-        val n = read(one, 0, 1)
-        return if (n <= 0) -1 else (one[0].toInt() and 0xFF)
-    }
-
-    override fun read(b: ByteArray, off: Int, n: Int): Int {
-        if (cur >= end) return -1
-        val want = minOf(n.toLong(), end - cur).toInt()
+    private fun fill(): Boolean {
+        if (cur >= end) return false
+        val want = minOf(buf.size.toLong(), end - cur).toInt()
         raf.seek(cur)
-        val got = raf.read(b, off, want)
-        if (got <= 0) return -1
+        val got = raf.read(buf, 0, want)
+        if (got <= 0) return false
         while (pi < pos.size && pos[pi] + len[pi] <= cur) pi++
         var j = pi
         while (j < pos.size && pos[j] < cur + got) {
@@ -423,13 +420,28 @@ class ClusterStream(
                 val abs = pos[j] + k
                 if (abs >= cur && abs < cur + got) {
                     val shift = 8 * (len[j] - 1 - k)
-                    b[off + (abs - cur).toInt()] = ((v shr shift) and 0xFF).toByte()
+                    buf[(abs - cur).toInt()] = ((v shr shift) and 0xFF).toByte()
                 }
             }
             j++
         }
         cur += got
-        return got
+        bp = 0
+        bl = got
+        return true
+    }
+
+    override fun read(): Int {
+        if (bp >= bl && !fill()) return -1
+        return buf[bp++].toInt() and 0xFF
+    }
+
+    override fun read(b: ByteArray, off: Int, n: Int): Int {
+        if (bp >= bl && !fill()) return -1
+        val c = minOf(n, bl - bp)
+        System.arraycopy(buf, bp, b, off, c)
+        bp += c
+        return c
     }
 
     override fun close() {
