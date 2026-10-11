@@ -25,6 +25,12 @@ class LocalServer(private val ctx: Context, port: Int) : NanoHTTPD("127.0.0.1", 
     private val mkvCache = HashMap<String, MkvIndex?>()
     private val mp4Cache = HashMap<String, Mp4Index?>()
 
+    private val skipDirs = setOf("Android", "System Volume Information", "LOST.DIR")
+    private val keepExt = setOf(
+        "mp4", "m4v", "mkv", "webm", "mov", "avi", "ogv",
+        "jpg", "jpeg", "png", "webp", "json"
+    )
+
     init {
         rescan()
     }
@@ -91,12 +97,20 @@ class LocalServer(private val ctx: Context, port: Int) : NanoHTTPD("127.0.0.1", 
         rescan()
     }
 
-    private fun walkFile(d: File, path: String, m: MutableMap<String, Entry>) {
+        private fun walkFile(d: File, path: String, m: MutableMap<String, Entry>) {
         val list = d.listFiles() ?: return
         for (f in list) {
-            val p = "$path/${f.name}"
-            if (f.isDirectory) walkFile(f, p, m)
-            else m[p] = Entry(f.name, { f.length() }, { java.io.BufferedInputStream(FileInputStream(f), 1 shl 20) }, f)
+            val nm = f.name
+            if (nm.startsWith(".")) continue
+            if (f.isDirectory) {
+                if (nm.startsWith('$') || nm in skipDirs) continue
+                walkFile(f, "$path/$nm", m)
+            } else {
+                val ext = nm.substringAfterLast('.', "").lowercase()
+                if (ext in keepExt) {
+                    m["$path/$nm"] = Entry(nm, { f.length() }, { java.io.BufferedInputStream(FileInputStream(f), 1 shl 20) }, f)
+                }
+            }
         }
     }
 
