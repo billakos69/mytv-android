@@ -86,7 +86,10 @@ class NativePlayer(
         checked = false
         catching = false
         val rf = DefaultRenderersFactory(ctx).setEnableDecoderFallback(true)
-        val p = ExoPlayer.Builder(ctx, rf).build()
+                val lc = DefaultLoadControl.Builder()
+            .setBufferDurationsMs(15000, 50000, 500, 1500)
+            .build()
+        val p = ExoPlayer.Builder(ctx, rf).setLoadControl(lc).build()
         p.trackSelectionParameters = p.trackSelectionParameters.buildUpon()
             .setPreferredAudioLanguages("el", "en")
             .build()
