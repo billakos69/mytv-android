@@ -60,7 +60,7 @@ body.nat,body.nat .tv,body.nat .tvw,body.nat .ffs{background:transparent!importa
 <section id="guide" class="hide"><div class="row"><button class="b" id="tt">📟 Teletext</button></div><div id="gl"></div><p class="mu">Πάτα ένα πρόγραμμα για να δεις το κανάλι.</p></section>
 
 <section id="lib" class="hide">
- <div id="tb" class="row"><input class="w" id="qs" placeholder="🔍 Αναζήτηση σειράς ή επεισοδίου"><button class="b" id="rnd">🎲 Τυχαίο επεισόδιο</button><button class="b" id="clr">🗑 Αφαίρεση όλων</button><button class="b" id="nsb" style="display:none">⚠ Χωρίς μετάβαση</button></div>
+ <div id="tb" class="row"><input class="w" id="qs" placeholder="🔍 Αναζήτηση σειράς ή επεισοδίου"><button class="b" id="rnd">🎲 Τυχαίο επεισόδιο</button><button class="b" id="clr">🗑 Αφαίρεση όλων</button><button class="b" id="rsc" style="display:none">🔄 Σάρωση δίσκου</button><button class="b" id="nsb" style="display:none">⚠ Χωρίς μετάβαση</button></div>
  <div id="shelf"></div>
  <div id="ser" class="hide">
   <div class="row"><button class="b" id="bk">← Πίσω</button><b id="st" style="flex:1"></b><span id="sbt"></span><select id="ld" title="Πόσο νωρίς εμφανίζεται η ειδοποίηση για το επόμενο επεισόδιο"><option value="30">Επόμενο: 30″ πριν το τέλος</option><option value="60">1′ πριν</option><option value="120">2′ πριν</option><option value="150">2′30″ πριν</option><option value="180">3′ πριν</option></select><button class="b" id="sf" title="Πλήρης οθόνη">⛶</button><button class="b" id="sd">Διαγραφή σειράς</button></div>
@@ -70,7 +70,7 @@ body.nat,body.nat .tv,body.nat .tvw,body.nat .ffs{background:transparent!importa
  <div class="card">
   <b>📂 Φάκελος από τον υπολογιστή ή εξωτερικό δίσκο</b>
   <div class="mu">Διάλεξε έναν φάκελο με υποφακέλους σειρών (ένας υποφάκελος = μια σειρά) ή απευθείας φάκελο μιας σειράς. Διαβάζει επεισόδια, διάρκειες και cover (cover.jpg / poster.jpg / folder.jpg) μόνο του. Τα αρχεία δεν ανεβαίνουν πουθενά.</div>
-  <div class="row"><select id="fm"><option value="auto">Αυτόματα</option><option value="one">Ο φάκελος είναι ΜΙΑ σειρά (υποφάκελοι = σεζόν)</option><option value="many">Ο φάκελος έχει ΠΟΛΛΕΣ σειρές (υποφάκελοι = σειρές)</option></select><label class="b p">Σύνδεση φακέλου <input type="file" id="fd" webkitdirectory multiple hidden></label><button class="b" id="fh" hidden>📌 Φάκελος που θυμάται</button><button class="b" id="fr" hidden>🔌 Επανασύνδεση δίσκου</button><span class="mu" id="fs"></span></div>
+  <div class="row"><select id="fm"><option value="auto">Αυτόματα (βρίσκει μόνο του σειρές και σεζόν, ακόμα και σε όλο το δίσκο)</option><option value="one">Ο φάκελος είναι ΜΙΑ σειρά (υποφάκελοι = σεζόν)</option><option value="many">Ο φάκελος έχει ΠΟΛΛΕΣ σειρές (υποφάκελοι = σειρές)</option></select><label class="b p">Σύνδεση φακέλου <input type="file" id="fd" webkitdirectory multiple hidden></label><button class="b" id="fh" hidden>📌 Φάκελος που θυμάται</button><button class="b" id="fr" hidden>🔌 Επανασύνδεση δίσκου</button><span class="mu" id="fs"></span></div>
   <div id="cf"></div>
   <div class="mu">Μετά από επανεκκίνηση της σελίδας ξαναδιάλεξε τον ίδιο φάκελο για να ξανασυνδεθούν τα αρχεία (οι σειρές και τα προγράμματα μένουν). Ο browser παίζει σίγουρα mp4/m4v/webm — τα mkv/avi συχνά δεν παίζουν.</div>
  </div>
@@ -229,7 +229,7 @@ function chBtns(){
  if(!S.channels.length)b.append(el('span',{class:'mu'},'Φτιάξε κανάλι από την καρτέλα Προγράμματα.'))}
 const idx=()=>S.channels.findIndex(c=>c.id===chId);
 function osd(t,ms){const o=$('#osd');o.textContent=t;o.style.display='block';clearTimeout(osd.t);osd.t=setTimeout(()=>o.style.display='none',ms||3000)}
-function go(i){const n=S.channels.length;if(!n)return;i=((i%n)+n)%n;chId=S.channels[i].id;playing='';snow(450);chBtns();tune(true);osd((i+1)+' · '+S.channels[i].name+'\n'+info(S.channels[i]),5000)}
+function go(i){const n=S.channels.length;if(!n)return;i=((i%n)+n)%n;chId=S.channels[i].id;playing='';snow(250);chBtns();tune(true);osd((i+1)+' · '+S.channels[i].name+'\n'+info(S.channels[i]),5000)}
 function av(){const v=$('#tv video');if(v){v.volume=VOL;v.muted=MUTE}}
 function act(a){
  if(NAT&&(a==='vp'||a==='vm')&&window.AndroidTV&&window.AndroidTV.nextAudio){window.AndroidTV.nextAudio();return}
@@ -351,10 +351,11 @@ async function importFiles0(fs,loud,forceMode){const st=$('#fs');S.covers=S.cove
  const vids=fs.filter(f=>VID.test(f.name)).sort((a,b)=>a.webkitRelativePath.localeCompare(b.webkitRelativePath,undefined,{numeric:true}));
  if(!vids.length){st.textContent='Δεν βρέθηκαν βίντεο';if(loud)say('Δεν βρέθηκαν βίντεο στον φάκελο που διάλεξες. Διάλεξε τον κεντρικό φάκελο που τα περιέχει.');return}
  let mode=forceMode||$('#fm').value;
- if(mode==='auto'){const subs=[...new Set(vids.map(f=>f.webkitRelativePath.split('/')).filter(p=>p.length>=3).map(p=>p[1]))];
-  const direct=vids.some(f=>f.webkitRelativePath.split('/').length===2),SE=/season|σεζ|^s\s*\d+|book|βιβλ|part|μέρος|vol|special|extra/i;
-  mode=(!subs.length||direct||subs.every(x=>SE.test(x)))?'one':'many'}
+ if(mode==='auto')mode='disk';
+ const SE=/season|σεζ|^s\s*\d+\b|^book|βιβλ|^part|μέρος|^vol|^disc|^cd\s*\d|special|extra|^ova|^\d{1,2}$/i;
+ const serDir=dirs=>{const L=dirs.length,lf=dirs[L-1];return (L>=2&&SE.test(lf))?{ser:dirs[L-2],sea:lf}:{ser:lf,sea:''}};
  const info=f=>{const p=f.webkitRelativePath.split('/'),n=p.length;
+  if(mode==='disk')return{...serDir(p.slice(0,n-1)),t:clean(p[n-1])};
   if(mode==='one')return{ser:p[0],sea:n>=3?p[1]:'',t:clean(p[n-1])};
   return{ser:n>=3?p[1]:p[0],sea:n>=4?p[2]:'',t:clean(p[n-1])}};
  const RS=new Set(S.removed||[]),meta=vids.map(f=>({f,key:f.webkitRelativePath,...info(f)})).filter(m=>!RS.has(m.key));
@@ -366,9 +367,9 @@ async function importFiles0(fs,loud,forceMode){const st=$('#fs');S.covers=S.cove
    if(ex){rl++;ex.local=m.key;ex.url=u;ex.series=m.ser;ex.season=m.sea;ex.title=m.t}else{const lz=!!(m.f._url&&ATV),d=lz?0:await dur(u);S.items.push({id:uid(),title:m.t,url:u,local:m.key,kind:'series',series:m.ser,season:m.sea,dur:Math.max(1,Math.ceil((d||(lz?1320:2700))/60)),dq:lz?1:undefined})}
    n++;st.textContent='Φόρτωση '+n+'/'+meta.length;const lb=$('#lb');lb.classList.remove('hide');lb.textContent='⏳ Σύνδεση… '+n+'/'+meta.length}))}
  for(const f of fs){if(!IMG.test(f.name)||!COV.test(f.name))continue;const p=f.webkitRelativePath.split('/');
-  const ser=mode==='one'?(p.length===2?p[0]:null):(p.length===3?p[1]:null);
+  const ser=mode==='disk'?serDir(p.slice(0,p.length-1)).ser:(mode==='one'?(p.length===2?p[0]:null):(p.length===3?p[1]:null));
   if(ser&&!S.covers[ser]){const c=await rs(f);if(c)S.covers[ser]=c}}
- st.textContent='✓ '+meta.length+' βίντεο ('+(mode==='one'?'μία σειρά':'πολλές σειρές')+')';if(!S.channels.length&&!S.autoCh){const ser=Object.keys(grp());if(ser.length){S.channels.push({id:uid(),name:'Παιδικά',slots:[],rules:[],auto:{ser,from:'07:00',to:'21:00',rand:false}});S.autoCh=1;chBtns()}}
+ st.textContent='✓ '+meta.length+' βίντεο ('+(mode==='disk'?'αυτόματη ταξινόμηση':mode==='one'?'μία σειρά':'πολλές σειρές')+')';if(!S.channels.length&&!S.autoCh){const ser=Object.keys(grp());if(ser.length){S.channels.push({id:uid(),name:'Παιδικά',slots:[],rules:[],auto:{ser,from:'07:00',to:'21:00',rand:false}});S.autoCh=1;chBtns()}}
  RM=mode;save();lib();prog();if(loud)say('✓ Συνδέθηκαν '+rl+' υπάρχοντα και προστέθηκαν '+(meta.length-rl)+' νέα βίντεο.');if(!$('#live').classList.contains('hide'))tune(true)}
 
 $('#fd').onchange=e=>{const fs=[...e.target.files];e.target.value='';importFiles(fs,true)};
@@ -387,7 +388,7 @@ async function fromServer(loud){try{const r=await (await fetch('/api/list')).jso
  const fs=r.files.map(f=>f.path).filter(x=>VID.test(x)||(IMG.test(x)&&COV.test(x.split('/').pop()))).map(x=>({name:x.split('/').pop(),webkitRelativePath:x,_url:'/f/'+x.split('/').map(encodeURIComponent).join('/')}));
  if(!fs.length){S.items.forEach(i=>{if(i.local)i.url=''});lib();if(loud)say('Δεν βρέθηκαν βίντεο. Πάτα «Σύνδεση δίσκου» και διάλεξε τον κεντρικό φάκελο.');return}
  const KS=new Set(r.files.map(f=>f.path));S.items.forEach(i=>{if(i.local&&i.url&&!KS.has(i.local))i.url=''});
- await importFiles(fs,loud);durQueue();cfList()}catch(e){if(loud)say('Δεν μπόρεσα να διαβάσω τον δίσκο.')}}
+ await importFiles(fs,loud);durQueue();cfList();warmAll()}catch(e){if(loud)say('Δεν μπόρεσα να διαβάσω τον δίσκο.')}}
 window.onFolder=()=>fromServer(true);
 window.onNative=o=>{NS=o;if(curId&&o.dur>0){const it=S.items.find(x=>x.id===curId);if(it&&it.dq){it.dur=Math.max(1,Math.ceil(o.dur/60));delete it.dq;save()}}if(!NATLIVE&&curId&&o.pos>5){const t=Date.now();if(t-(window.onNative.t||0)>10000){window.onNative.t=t;S.pos=S.pos||{};S.pos[curId]=Math.floor(o.pos+(NATSHIFT?NATOFF:0));save()}}};
 window.onNativeEnd=()=>{if(NATEND)NATEND()};
@@ -410,6 +411,8 @@ let DQB=false;
 async function durQueue(){if(DQB)return;DQB=true;try{let n=0;for(;;){const todo=S.items.filter(i=>i.dq&&i.url&&i.local);if(!todo.length)break;
  await Promise.all(todo.slice(0,2).map(async i=>{const j=await durInfo(i.local),sc=j.sec||0;if(sc>0)i.dur=Math.max(1,Math.ceil(sc/60));if(j.cues===false)i.ns=1;delete i.dq}));
  if(++n%5===0)save()}save()}finally{DQB=false}}
+let WARMING=false;
+async function warmAll(){if(!ATV||WARMING)return;WARMING=true;try{for(const c of S.channels){const r=nowSlot(c);for(const x of [r.it,r.nxt&&item(r.nxt.item)]){if(x&&x.local&&x.url)await fetch('/api/shiftok?path='+encodeURIComponent(x.local)).catch(()=>{})}}}finally{WARMING=false}}
 const durInfo=async k=>{try{return await (await fetch('/api/dur?path='+encodeURIComponent(k))).json()}catch(e){return{sec:0}}};
 const durSrv=async k=>{try{const j=await (await fetch('/api/dur?path='+encodeURIComponent(k))).json();return j.sec||0}catch(e){return 0}};
 async function browse(path,mode){
@@ -420,7 +423,8 @@ async function browse(path,mode){
  if(j.error)b.append(el('p',{},'Σφάλμα: '+j.error+(j.error==='denied'?' — δώσε άδεια αποθήκευσης: Ρυθμίσεις → Εφαρμογές → Η Τηλεόρασή μου → Άδειες.':'')));
  const list=el('div',{style:'max-height:50vh;overflow:auto'});
  if(path)list.append(el('button',{class:'b',style:'display:block;width:100%;text-align:left;margin:4px 0',on:()=>browse(j.parent||'',mode)},'⬆ Πίσω'));
- (j.dirs||[]).forEach(x=>list.append(el('button',{class:'b',style:'display:block;width:100%;text-align:left;margin:4px 0',on:()=>browse(x.path,mode)},'📁 '+x.name)));
+ (j.dirs||[]).forEach(x=>{const nav=el('button',{class:'b',style:'display:block;width:100%;text-align:left;margin:4px 0',on:()=>browse(x.path,mode)},'📁 '+x.name);
+  if(!path&&mode!=='json')list.append(el('div',{class:'row'},nav,el('button',{class:'b p',on:async()=>{d.classList.add('hide');S.removed=[];try{await fetch('/api/setroot?path='+encodeURIComponent(x.path))}catch(e){}fromServer(true)}},'⚡ Σάρωση όλου του δίσκου')));else list.append(nav)});
  if(mode==='json')(j.jsons||[]).forEach(n=>list.append(el('button',{class:'b p',style:'display:block;width:100%;text-align:left;margin:4px 0',on:()=>jsonChoice(path+'/'+n,n)},'📄 '+n)));
  if(!(j.dirs||[]).length&&!j.error)list.append(el('p',{class:'mu'},'Δεν υπάρχουν υποφάκελοι εδώ.'));
  b.append(list);
@@ -565,6 +569,7 @@ document.addEventListener('keydown',e=>{
  if(best){best.focus();best.scrollIntoView({block:'nearest',inline:'nearest'})}else if(!hz)window.scrollBy(0,sg*300);
  e.preventDefault()});
 $('#qs').oninput=()=>lib();
+$('#rsc').onclick=async()=>{try{await fetch('/api/rescan')}catch(e){}fromServer(true)};
 $('#nsb').onclick=()=>{const l=S.items.filter(i=>i.ns);say(l.length+' αρχεία δεν επιτρέπουν μετάβαση στη μέση. Στο Live παίζουν με γρήγορη προώθηση μέχρι να συγχρονιστούν. Μόνιμη λύση: ξαναγράψε τα με ffmpeg (-c copy).\n'+l.slice(0,12).map(i=>'• '+(i.local||i.title)).join('\n')+(l.length>12?'\n… και '+(l.length-12)+' ακόμα':''))};
 $('#clr').onclick=async()=>{if(!S.items.length)return say('Η βιβλιοθήκη είναι ήδη άδεια.');
  if(!await dlg('Θα αφαιρεθούν ΟΛΕΣ οι σειρές και οι ταινίες ('+S.items.length+' επεισόδια) από τη βιβλιοθήκη. Τα αρχεία στον δίσκο ΔΕΝ διαγράφονται. Συνέχεια;',{yes:'Αφαίρεση όλων',no:'Άκυρο'}))return;
@@ -599,7 +604,7 @@ function focusBack(i){if(i===null)return;const all=[...document.querySelectorAll
 (async()=>{try{const d=await IDB.get('S');if(d)S=d}catch(e){}
  S.covers=S.covers||{};S.items.forEach(i=>{if(i.local&&!/^S\d+E\d+( · |$)/.test(i.title))i.title=clean(i.title)});
  document.querySelectorAll('label.b').forEach(l=>l.tabIndex=0);
- if(location.hostname==='localhost'&&location.port==='8765'){ATV=true;window.ATVF=true;$('#bf').parentNode.style.display='none';document.querySelectorAll('input,textarea').forEach(x=>{if(!/^(checkbox|file|hidden|radio|button)$/.test(x.type))x.readOnly=true});document.body.classList.add('atv');$('#tvw').classList.add('ffs');$('#fd').parentNode.addEventListener('click',e=>{e.preventDefault();window.AndroidTV&&window.AndroidTV.pickFolder()})}
+ if(location.hostname==='localhost'&&location.port==='8765'){ATV=true;window.ATVF=true;$('#rsc').style.display='';$('#bf').parentNode.style.display='none';document.querySelectorAll('input,textarea').forEach(x=>{if(!/^(checkbox|file|hidden|radio|button)$/.test(x.type))x.readOnly=true});document.body.classList.add('atv');$('#tvw').classList.add('ffs');$('#fd').parentNode.addEventListener('click',e=>{e.preventDefault();window.AndroidTV&&window.AndroidTV.pickFolder()})}
  if(ATV&&!S.items.length&&!S.channels.length&&window.AndroidTV&&window.AndroidTV.loadState){try{const t=window.AndroidTV.loadState();if(t){const d=JSON.parse(t);if(d&&(d.items||[]).length){S=d;S.covers=S.covers||{}}}}catch(e){}}
  $('#ld').value=S.lead||150;
  if(S.items.length){if(!S.lastBackup)S.lastBackup=Date.now();else if(Date.now()-S.lastBackup>14*864e5)setTimeout(()=>say('⏰ Πέρασαν πάνω από 14 μέρες από το τελευταίο backup — Προγράμματα → Εξαγωγή backup.'),1500)}
