@@ -120,6 +120,7 @@ console.log(seen.size+' αντικείμενα');try{copy(out)}catch(e){}console
 <script>
 const $=s=>document.querySelector(s);
 let NAT=false,NATEND=null,NATLIVE=false,NS=null,NATURL='',NATID=null,NATOFF=0,NATSHIFT=false,NATTOK=0,NATDBG='',NATCATCH=false;
+const NU=u=>/^https?:/i.test(u)?u:location.origin+u;
 function natStop(){NATTOK++;NATSHIFT=false;if(NAT&&window.AndroidTV&&window.AndroidTV.stop)window.AndroidTV.stop();NAT=false;NATEND=null;NS=null;document.body.classList.remove('nat');const cu=$('#cu');if(cu)cu.classList.add('hide')}
 let S={items:[],channels:[],cur:null};
 try{const r=localStorage.getItem('mytv');if(r)S=JSON.parse(r)}catch(e){}
@@ -146,11 +147,11 @@ function embed(box,url,off,live,onend,lead){
  if(NAT)natStop();
  box.querySelectorAll('video').forEach(o=>{o.dataset.x=1;o.pause();o.removeAttribute('src');o.load()});box.innerHTML='';off=Math.max(0,Math.floor(off||0));
  if(!url){box.textContent='Ο δίσκος δεν είναι συνδεδεμένος — πάτα OK (μενού) και διάλεξε «Σύνδεση δίσκου»';return}
- if(window.ATVF&&window.AndroidTV&&window.AndroidTV.play&&url.charAt(0)==='/'){NAT=true;NATURL=url;NATOFF=off;NATSHIFT=false;NATCATCH=false;NATLIVE=!!live;NATEND=onend||null;document.body.classList.add('nat');{const cu=$('#cu');cu.textContent='⏳ Φόρτωση…';cu.classList.remove('hide')}
-  const it=S.items.find(x=>x.id===NATID),tok=++NATTOK,A=window.AndroidTV,full=()=>{if(tok===NATTOK&&NAT)A.play(location.origin+url,off*1000,!!live)};
+ if(window.ATVF&&window.AndroidTV&&window.AndroidTV.play&&(url.charAt(0)==='/'||/^https?:\/\/\S+\.(m3u8|mp4|m4v|webm|mkv|mov)(\?|#|$)/i.test(url))){NAT=true;NATURL=url;NATOFF=off;NATSHIFT=false;NATCATCH=false;NATLIVE=!!live;NATEND=onend||null;document.body.classList.add('nat');{const cu=$('#cu');cu.textContent='⏳ Φόρτωση…';cu.classList.remove('hide')}
+  const it=S.items.find(x=>x.id===NATID),tok=++NATTOK,A=window.AndroidTV,full=()=>{if(tok===NATTOK&&NAT)A.play(NU(url),off*1000,!!live)};
   if(it&&it.local&&off>3&&(it.ns||/\.(mkv|webm|mp4|m4v|mov)$/i.test(it.local))){
    fetch('/api/shiftok?path='+encodeURIComponent(it.local)).then(r=>r.json()).then(j=>{if(tok!==NATTOK||!NAT)return;NATDBG=(/\.[a-z0-9]+$/i.exec(it.local)||[''])[0]+' · ευρετήριο:'+j.cues+' · ns:'+(it.ns?1:0)+' · shift:';if(j.ok&&(live||j.cues===false||it.ns)){if(j.cues===false&&!it.ns){it.ns=1;save()}NATDBG+='ναι';NATSHIFT=true;A.play(location.origin+url+'?t='+off,0,!!live)}else{NATDBG+='όχι (ok:'+j.ok+')'+(j.boxes?' · boxes:'+j.boxes:'');full()}}).catch(()=>{NATDBG='σφάλμα κλήσης shiftok';full()});return}
-  A.play(location.origin+url,off*1000,!!live);return}
+  A.play(NU(url),off*1000,!!live);return}
  let m=url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=)([\w-]+)/)||url.match(/[?&]id=([\w-]+)/);
  if(/drive\.google\.com/.test(url)&&m){box.append(el('iframe',{src:'https://drive.google.com/file/d/'+m[1]+'/preview',allow:'autoplay;fullscreen',allowfullscreen:''}));return}
  m=url.match(/mega\.(?:nz|io|co\.nz)\/(?:embed\/|file\/)([\w-]+)#([\w-]+)/)||url.match(/mega\.(?:nz|io|co\.nz)\/#!([\w-]+)!([\w-]+)/);
@@ -362,7 +363,7 @@ async function importTxt(txts,loud){
    const m=line.match(/https?:\/\/\S+/i);
    if(!m){prev=line;return}
    const url=m[0].replace(/^https?/i,x=>x.toLowerCase()).replace(/[)\]>,;]+$/,'');
-   const title=line.slice(0,m.index).replace(/[\s:\-–—|=]+$/,'').replace(/^[\s\d]+[.)]\s+/,'').trim()||prev||'Χωρίς τίτλο';
+   const title=line.slice(0,m.index).replace(/[\s:\-–—|=]+$/,'').replace(/^[\s\d]+[.)]\s+/,'').trim()||prev.replace(/[\s:\-–—|=]+$/,'')||'Χωρίς τίτλο';
    const dm=line.slice(m.index+m[0].length).match(/^\s*[|;,]?\s*(\d{1,3})\s*(?:min|λ|')?\s*$/i),dur=dm?+dm[1]:90;prev='';
    if(RS.has('u:'+url))return;
    const ex=S.items.find(x=>x.url===url);
@@ -419,11 +420,14 @@ window.onFolder=()=>fromServer(true);
 window.onNative=o=>{NS=o;if(curId&&o.dur>0){const it=S.items.find(x=>x.id===curId);if(it&&it.dq){it.dur=Math.max(1,Math.ceil(o.dur/60));delete it.dq;save()}}if(!NATLIVE&&curId&&o.pos>5){const t=Date.now();if(t-(window.onNative.t||0)>10000){window.onNative.t=t;S.pos=S.pos||{};S.pos[curId]=Math.floor(o.pos+(NATSHIFT?NATOFF:0));save()}}};
 window.onNativeEnd=()=>{if(NATEND)NATEND()};
 const healDisk=()=>{fetch('/api/rescan').then(()=>setTimeout(()=>fromServer(false),2000)).catch(()=>{})};
-window.onNativeError=j=>{if(NATSHIFT&&window.AndroidTV){NATSHIFT=false;let e0={};try{e0=typeof j==='string'?JSON.parse(j):j}catch(x){}NATDBG+=' · ΣΦΑΛΜΑ shift: '+(e0.code||'?')+' | '+(e0.cause||'')+(e0.mime?' | '+e0.mime:'')+(e0.codecs?' '+e0.codecs:'');window.AndroidTV.play(location.origin+NATURL,NATOFF*1000,NATLIVE);return}
+window.onNativeError=j=>{if(NATSHIFT&&window.AndroidTV){NATSHIFT=false;let e0={};try{e0=typeof j==='string'?JSON.parse(j):j}catch(x){}NATDBG+=' · ΣΦΑΛΜΑ shift: '+(e0.code||'?')+' | '+(e0.cause||'')+(e0.mime?' | '+e0.mime:'')+(e0.codecs?' '+e0.codecs:'');window.AndroidTV.play(NU(NATURL),NATOFF*1000,NATLIVE);return}
 let o={};try{o=typeof j==='string'?JSON.parse(j):j}catch(e){o={code:String(j)}}
  const mime=o.mime||'';let path='';try{path=o.uri?decodeURIComponent(o.uri.replace(/^[^]*?\/f\//,'')):''}catch(e){path=o.uri||''}
  let hint=/hevc|h265/i.test(mime)?(/^(hvc1|hev1)\.2/.test(o.codecs||'')?'Βίντεο HEVC 10-bit: η τηλεόραση μάλλον δεν το υποστηρίζει.':'Βίντεο HEVC: η τηλεόραση ίσως δεν το υποστηρίζει.'):(/^audio\//.test(mime)?'Ο ήχος ('+mime+') δεν υποστηρίζεται από την τηλεόραση.':'');
- if(/404/.test((o.cause||'')+(o.code||''))){hint='Το αρχείο δεν βρέθηκε στον δίσκο — γίνεται νέα σάρωση. Αν δεν παίξει, πάτα «Δοκίμασε ξανά» στο μενού.';healDisk()}
+
+ const remote=/^https?:/i.test(o.uri||'')&&!(o.uri||'').startsWith(location.origin);
+ if(remote){hint=/40[0-9]|IO_BAD_HTTP/.test((o.cause||'')+(o.code||''))?'Ο διακομιστής του λινκ αρνήθηκε ή δεν βρήκε το αρχείο: το λινκ μπορεί να έχει λήξει ή να παίζει μόνο μέσα από τον δικό του player.':hint}
+ else if(/404/.test((o.cause||'')+(o.code||''))){hint='Το αρχείο δεν βρέθηκε στον δίσκο — γίνεται νέα σάρωση. Αν δεν παίξει, πάτα «Δοκίμασε ξανά» στο μενού.';healDisk()}
  const msg=(o.code||'?')+(mime?' · '+mime:'')+(o.codecs?' · '+o.codecs:'')+(o.res?' · '+o.res:'')+(o.cause?' · '+o.cause:'')+(path?'\n'+path:'')+(hint?'\n'+hint:'');
  if(NATLIVE){playing='';osd('⚠ '+msg,6000)}else{say('Σφάλμα αναπαραγωγής:\n'+msg)}};
 window.onNativeWarn=t=>{if(!$('#live').classList.contains('hide'))osd('⚠ '+t,5000);else{const c=S.items.find(x=>x.id===curId);$('#pt').textContent='⚠ '+t;setTimeout(()=>{if(c)$('#pt').textContent=c.title},4000)}};
