@@ -68,7 +68,7 @@ class MainActivity : Activity() {
         )
         setContentView(root)
 
-        note("v1.13 Android API " + Build.VERSION.SDK_INT)
+        note("v1.15 Android API " + Build.VERSION.SDK_INT)
         note("index.html στην εφαρμογή: " + (assets.list("")?.contains("index.html") == true))
         note("άδεια αποθήκευσης: " + !needStoragePermission())
         if (needStoragePermission()) {
