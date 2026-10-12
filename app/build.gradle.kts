@@ -32,4 +32,5 @@ dependencies {
     implementation("androidx.documentfile:documentfile:1.0.1")
     implementation("org.nanohttpd:nanohttpd:2.3.1")
     implementation("androidx.media3:media3-exoplayer:1.3.1")
+    implementation("androidx.media3:media3-exoplayer-hls:1.3.1")
 }
