@@ -28,7 +28,7 @@ class LocalServer(private val ctx: Context, port: Int) : NanoHTTPD("127.0.0.1", 
     private val skipDirs = setOf("Android", "System Volume Information", "LOST.DIR")
     private val keepExt = setOf(
         "mp4", "m4v", "mkv", "webm", "mov", "avi", "ogv",
-        "jpg", "jpeg", "png", "webp", "json"
+        "jpg", "jpeg", "png", "webp", "json", "txt"
     )
 
     init {
