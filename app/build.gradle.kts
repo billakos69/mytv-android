@@ -3,6 +3,8 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+val vc = (project.findProperty("vc") as String?)?.toIntOrNull() ?: 1
+
 android {
     namespace = "com.mytv.app"
     compileSdk = 34
@@ -18,8 +20,11 @@ android {
         applicationId = "com.mytv.app"
         minSdk = 24
         targetSdk = 29
-        versionCode = 15
-        versionName = "1.15"
+        versionCode = 100 + vc
+        versionName = "2.$vc"
+    }
+    buildFeatures {
+        buildConfig = true
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
