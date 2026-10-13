@@ -18,7 +18,7 @@ jobs:
         run: |
           if [ -f debug.keystore.b64 ] && [ ! -f debug.keystore ]; then base64 -d debug.keystore.b64 > debug.keystore; fi
           if [ ! -f debug.keystore ]; then keytool -genkeypair -keystore debug.keystore -storepass android -keypass android -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"; fi
-      - run: gradle assembleDebug --no-daemon
+      - run: gradle assembleDebug --no-daemon -Pvc=${{ github.run_number }}
       - uses: actions/upload-artifact@v4
         with:
           name: MyTV-apk
