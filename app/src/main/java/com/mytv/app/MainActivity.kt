@@ -8,6 +8,8 @@ import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
@@ -24,6 +26,7 @@ import android.widget.TextView
 import android.widget.Toast
 import org.json.JSONObject
 import java.io.File
+import java.util.UUID
 
 class MainActivity : Activity() {
     private lateinit var web: WebView
@@ -31,6 +34,8 @@ class MainActivity : Activity() {
     private lateinit var np: NativePlayer
     private var server: LocalServer? = null
     private var needResume = false
+    private var token = ""
+    private var pageReady = false
     private val log = ArrayList<String>()
 
     private fun note(s: String) {
@@ -40,6 +45,9 @@ class MainActivity : Activity() {
             dbg.text = log.joinToString("\n")
         }
     }
+
+    private fun tok(u: String): String =
+        if (u.startsWith("http://localhost:8765/")) u + (if (u.contains("?")) "&" else "?") + "k=" + token else u
 
     private fun needStoragePermission(): Boolean =
         Build.VERSION.SDK_INT >= 23 &&
@@ -68,14 +76,15 @@ class MainActivity : Activity() {
         )
         setContentView(root)
 
-        note("v1.15 Android API " + Build.VERSION.SDK_INT)
+        note("v" + BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE + ") Android API " + Build.VERSION.SDK_INT)
         note("index.html στην εφαρμογή: " + (assets.list("")?.contains("index.html") == true))
         note("άδεια αποθήκευσης: " + !needStoragePermission())
         if (needStoragePermission()) {
             requestPermissions(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE), 2)
         }
         try {
-            server = LocalServer(this, 8765).also { it.start() }
+            token = UUID.randomUUID().toString().replace("-", "")
+            server = LocalServer(this, 8765, token).also { it.start() }
             note("server OK")
         } catch (e: Exception) {
             note("server ΣΦΑΛΜΑ: $e")
@@ -108,14 +117,21 @@ class MainActivity : Activity() {
         web.setBackgroundColor(Color.TRANSPARENT)
         web.isFocusable = true
         web.isFocusableInTouchMode = true
-        web.loadUrl("http://localhost:8765/")
+        web.loadUrl("http://localhost:8765/?k=$token")
+        Handler(Looper.getMainLooper()).postDelayed({
+            if (!pageReady) {
+                server?.locked = false
+                note("κλείδωμα: ΑΠΕΝΕΡΓΟΠΟΙΗΘΗΚΕ (η σελίδα δεν φόρτωσε)")
+                web.loadUrl("http://localhost:8765/")
+            }
+        }, 12000)
         web.requestFocus()
     }
 
     inner class Bridge {
         @JavascriptInterface
         fun play(url: String, startMs: Double, live: Boolean) {
-            runOnUiThread { np.play(url, startMs.toLong(), live) }
+            runOnUiThread { np.play(tok(url), startMs.toLong(), live) }
         }
 
         @JavascriptInterface
@@ -163,7 +179,19 @@ class MainActivity : Activity() {
             }
 
         @JavascriptInterface
+        fun info(): String =
+            JSONObject().put("version", BuildConfig.VERSION_NAME).put("code", BuildConfig.VERSION_CODE)
+                .put("sdk", Build.VERSION.SDK_INT).put("model", Build.MODEL).put("locked", server?.locked ?: false)
+                .toString()
+
+        @JavascriptInterface
+        fun unlock() {
+            server?.locked = false
+        }
+
+        @JavascriptInterface
         fun ready() {
+            pageReady = true
             runOnUiThread { dbg.visibility = View.GONE }
         }
 
