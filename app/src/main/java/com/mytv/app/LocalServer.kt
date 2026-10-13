@@ -498,4 +498,10 @@ class LocalServer(private val ctx: Context, port: Int, private val token: String
         }
         val r = newFixedLengthResponse(
             if (part) Response.Status.PARTIAL_CONTENT else Response.Status.OK,
-            mime(e.name), ins, end - 
+            mime(e.name), ins, end - start + 1
+        )
+        r.addHeader("Accept-Ranges", "bytes")
+        if (part) r.addHeader("Content-Range", "bytes $start-$end/$len")
+        return r
+    }
+}
