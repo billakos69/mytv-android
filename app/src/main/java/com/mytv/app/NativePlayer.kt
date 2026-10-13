@@ -3,6 +3,7 @@ package com.mytv.app
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.view.Gravity
 import android.view.SurfaceView
 import android.view.View
@@ -35,6 +36,7 @@ class NativePlayer(
     private var catching = false
     private var catchStart = 0L
     private var tick = 0
+    private var tPlay = 0L
     private val handler = Handler(Looper.getMainLooper())
 
     init {
@@ -83,10 +85,11 @@ class NativePlayer(
         live = isLive
         audioOff = false
         want = startMs
+        tPlay = SystemClock.elapsedRealtime()
         checked = false
         catching = false
         val rf = DefaultRenderersFactory(ctx).setEnableDecoderFallback(true)
-                val lc = DefaultLoadControl.Builder()
+        val lc = DefaultLoadControl.Builder()
             .setBufferDurationsMs(15000, 50000, 500, 1500)
             .build()
         val p = ExoPlayer.Builder(ctx, rf).setLoadControl(lc).build()
@@ -101,6 +104,7 @@ class NativePlayer(
                 }
                 if (playbackState == Player.STATE_READY && !checked) {
                     checked = true
+                    send("window.onNativeTime&&window.onNativeTime('ready'," + (SystemClock.elapsedRealtime() - tPlay) + ")")
                     if (want > 3000) {
                         if (!p.isCurrentMediaItemSeekable) {
                             catching = true
@@ -146,10 +150,11 @@ class NativePlayer(
                     .put("uri", p.currentMediaItem?.localConfiguration?.uri?.toString() ?: "")
                 send("window.onNativeError&&window.onNativeError(" + o.toString() + ")")
             }
-            
+
             override fun onRenderedFirstFrame() {
-                   send("window.onNativeFirst&&window.onNativeFirst()")
-               }
+                send("window.onNativeTime&&window.onNativeTime('first'," + (SystemClock.elapsedRealtime() - tPlay) + ")")
+                send("window.onNativeFirst&&window.onNativeFirst()")
+            }
 
             override fun onVideoSizeChanged(videoSize: VideoSize) {
                 fit(videoSize.width, videoSize.height, videoSize.pixelWidthHeightRatio)
