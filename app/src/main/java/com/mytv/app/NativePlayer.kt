@@ -37,7 +37,6 @@ class NativePlayer(
     private var catchStart = 0L
     private var tick = 0
     private var tPlay = 0L
-    private var userSpeed = 1f
     private val handler = Handler(Looper.getMainLooper())
 
     init {
@@ -65,7 +64,6 @@ class NativePlayer(
             }
             val o = JSONObject()
                 .put("pos", p.currentPosition / 1000)
-                .put("ms", p.currentPosition)
                 .put("dur", if (p.duration > 0) p.duration / 1000 else 0L)
                 .put("playing", p.isPlaying)
                 .put("state", p.playbackState)
@@ -76,7 +74,7 @@ class NativePlayer(
 
     private fun endCatch(p: ExoPlayer) {
         catching = false
-        p.playbackParameters = PlaybackParameters(userSpeed)
+        p.playbackParameters = PlaybackParameters(1f)
         p.volume = 1f
         surface.visibility = View.VISIBLE
         send("window.onNativeCatch&&window.onNativeCatch(false,0)")
@@ -87,7 +85,6 @@ class NativePlayer(
         live = isLive
         audioOff = false
         want = startMs
-        userSpeed = 1f
         tPlay = SystemClock.elapsedRealtime()
         checked = false
         catching = false
@@ -199,19 +196,6 @@ class NativePlayer(
 
     fun resume() {
         player?.play()
-    }
-
-    fun seekTo(ms: Long) {
-        val p = player ?: return
-        if (live) return
-        p.seekTo(maxOf(0L, ms))
-    }
-
-    fun setSpeed(x: Float) {
-        val p = player ?: return
-        if (live) return
-        userSpeed = x.coerceIn(0.25f, 3f)
-        if (!catching) p.playbackParameters = PlaybackParameters(userSpeed)
     }
 
     fun seekBy(ms: Long) {
