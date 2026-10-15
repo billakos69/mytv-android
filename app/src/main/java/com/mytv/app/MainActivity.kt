@@ -155,6 +155,16 @@ class MainActivity : Activity() {
         }
 
         @JavascriptInterface
+        fun seekTo(ms: Double) {
+            runOnUiThread { np.seekTo(ms.toLong()) }
+        }
+
+        @JavascriptInterface
+        fun speed(x: Double) {
+            runOnUiThread { np.setSpeed(x.toFloat()) }
+        }
+
+        @JavascriptInterface
         fun nextAudio() {
             runOnUiThread {
                 val l = np.nextAudio()
