@@ -255,7 +255,10 @@ setInterval(()=>{if(!$('#live').classList.contains('hide'))tune()},20000);
 
 /* library */
 let cover=null,openS=null;
-const grp=()=>{const g={};S.items.forEach(i=>{const k=i.series||'Ταινίες';(g[k]=g[k]||[]).push(i)});Object.values(g).forEach(a=>a.sort((x,y)=>x.local&&y.local?x.local.localeCompare(y.local,undefined,{numeric:true}):0));return g};
+const grp=()=>{const g={};S.items.forEach(i=>{const k=i.series||'Ταινίες';(g[k]=g[k]||[]).push(i)});const seaNum=q=>{const m=String(q||'').match(/\d+/);return m?+m[0]:1e9};
+ Object.values(g).forEach(a=>a.sort((x,y)=>{const sx=x.season||'',sy=y.season||'';
+  if(sx!==sy){const d=seaNum(sx)-seaNum(sy);return d||sx.localeCompare(sy,undefined,{numeric:true})}
+  return x.local&&y.local?x.local.localeCompare(y.local,undefined,{numeric:true}):0}));return g};
 const TOP=window.top===window.self;let ATV=false,RM='auto';
 function banner(){const n=S.items.filter(i=>i.local&&!i.url).length,need=n>0||(ATV&&!S.items.some(i=>i.local&&i.url)),b=$('#lb');b.innerHTML='';b.classList.toggle('hide',!need);if(!need)return;
  const inp=el('input',{type:'file',webkitdirectory:'',multiple:'',hidden:''});inp.onchange=e=>{const fs=[...e.target.files];e.target.value='';importFiles(fs,true)};
