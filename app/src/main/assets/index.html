@@ -42,9 +42,33 @@ body.nat,body.nat .tv,body.nat .tvw,body.nat .ffs{background:transparent!importa
 #dbox p{white-space:pre-line}
 #cu{white-space:pre-line;position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:45;color:#fff;font-size:24px;text-align:center;pointer-events:none}#cu.hide{display:none}
 .chs button{margin:0 6px 6px 0}
+
+/* ===== TV mode (only when running in the TV app) ===== */
+html.atv:root{--bg:#0c0c10;--card:#16161c;--tx:#f4f4f7;--mu:#a4a4b0;--bd:#2c2c35;--ac:#e8336f;color-scheme:dark}
+.atv body{font-size:max(16px,calc(100vh/32));background:var(--bg)}
+.atv main{max-width:none;padding:1em 4vw 3em}
+.atv header{position:sticky;top:0;z-index:20;background:var(--bg);padding:.6em 4vw;gap:.5em;display:flex;flex-wrap:wrap;align-items:center}
+.atv header b{order:1;flex:1;font-size:1.25em}.atv nav{order:4;flex:1 1 100%;display:flex;gap:.5em;flex-wrap:wrap}
+#clk{display:none}.atv #clk{display:inline;order:2;font-size:1.15em;font-weight:600;font-variant-numeric:tabular-nums;color:var(--mu)}.atv #kb{order:3}
+.atv nav button,.atv .b{padding:.5em 1em;border-radius:.7em;font-size:1em;transition:transform .12s,box-shadow .12s}
+.atv .b.s{font-size:.85em;padding:.3em .6em}
+.atv :focus-visible{outline:.14em solid #fff;outline-offset:.1em;box-shadow:0 0 0 .3em var(--ac),0 .5em 1.2em rgba(0,0,0,.55);transform:scale(1.05);position:relative;z-index:3}
+.atv .mu{font-size:.8em}.atv h3{font-size:1.15em;margin:1.1em 0 .4em;color:var(--ac)}
+.atv .card{border-radius:.8em;padding:.9em 1em}.atv input,.atv select{font-size:1em;padding:.45em .7em;border-radius:.6em}.atv textarea{font-size:.8em}
+.atv .li{padding:.45em .3em;gap:.7em}
+.atv .g{grid-template-columns:repeat(auto-fill,minmax(9.5em,1fr));gap:.9em}
+.atv .cv{border-radius:.8em;transition:transform .12s,box-shadow .12s}.atv .cv span{font-size:.85em;padding:1.6em .6em .5em}.atv .cv:focus-visible{transform:scale(1.07)}
+.atv #tvw2:not(.ffs){display:none}
+.atv #osd{left:4vw;right:auto;top:auto;bottom:6vh;min-width:22em;max-width:72vw;padding:.7em 1.1em;border-radius:.8em;background:linear-gradient(90deg,rgba(0,0,0,.9),rgba(0,0,0,.62));font-weight:500;line-height:1.35}
+.atv #osd .oh{font-size:1.35em;font-weight:700;margin-bottom:.1em}.atv #osd .dim{opacity:.7;font-size:.9em}
+.atv #osd .obar{height:.28em;background:#ffffff40;border-radius:.2em;margin:.45em 0 .25em}.atv #osd .obar i{display:block;height:100%;background:var(--ac);border-radius:.2em}
+.atv #bug{top:3vh;right:3vw}.atv #bug img{max-height:7vh;max-width:16vw}.atv #cu{font-size:1.2em}
+.atv .pc{bottom:5vh;gap:.6em;padding:.7em 1em;border-radius:.9em}.atv #pt{font-size:.9em;max-width:60vw}
+.atv #dbox{max-width:min(30em,92vw)}.atv .tt{font-size:.75em}.atv .nx{bottom:9vh;max-width:24em}
+.atv input:focus-visible,.atv select:focus-visible{transform:none}.atv #tb{margin-bottom:.9em}.atv #eps .li .s{display:none}
 </style></head><body>
 <header><b>📺 Η Τηλεόρασή μου</b>
-<nav><button data-t="live" class="on">Live TV</button> <button data-t="guide">Οδηγός</button> <button data-t="lib">Βιβλιοθήκη</button> <button data-t="prog">Προγράμματα</button> <button data-t="diag">Διάγνωση</button></nav><button class="b" id="kb" title="Λειτουργία παιδιού">🔒</button></header>
+<nav><button data-t="live" class="on">Live TV</button> <button data-t="guide">Οδηγός</button> <button data-t="lib">Βιβλιοθήκη</button> <button data-t="prog">Προγράμματα</button> <button data-t="diag">Διάγνωση</button></nav><button class="b" id="kb" title="Λειτουργία παιδιού">🔒</button><span id="clk"></span></header>
 <main>
 <div class="card hide" id="lb"></div>
 <section id="live">
@@ -234,8 +258,13 @@ function chBtns(){
  S.channels.forEach((c,i)=>b.append(el('button',{class:'b'+(c.id===chId?' p':''),on:()=>go(i)},(i+1)+' ',logo('ch:'+c.id,'lg'),c.name)));
  if(!S.channels.length)b.append(el('span',{class:'mu'},'Φτιάξε κανάλι από την καρτέλα Προγράμματα.'))}
 const idx=()=>S.channels.findIndex(c=>c.id===chId);
-function osd(t,ms){const o=$('#osd');o.textContent=t;o.style.display='block';clearTimeout(osd.t);osd.t=setTimeout(()=>o.style.display='none',ms||3000)}
-function go(i){const n=S.channels.length;if(!n)return;i=((i%n)+n)%n;chId=S.channels[i].id;playing='';snow(250);chBtns();tune(true);osd((i+1)+' · '+S.channels[i].name+'\n'+info(S.channels[i]),5000)}
+function osd(t,ms,pct){const o=$('#osd'),L=String(t).split('\n');
+ if(document.body.classList.contains('atv')&&L.length>1){o.innerHTML='';o.append(el('div',{class:'oh'},L[0]),el('div',{class:'ol'},L[1]));
+  if(pct!=null){const i=el('i',{});i.style.width=Math.max(2,Math.min(100,pct))+'%';o.append(el('div',{class:'obar'},i))}
+  L.slice(2).forEach(x=>o.append(el('div',{class:'ol dim'},x)))}
+ else o.textContent=t;
+ o.style.display='block';clearTimeout(osd.t);osd.t=setTimeout(()=>o.style.display='none',ms||3000)}
+function go(i){const n=S.channels.length;if(!n)return;i=((i%n)+n)%n;chId=S.channels[i].id;playing='';snow(250);chBtns();tune(true);{const c=S.channels[i],r=nowSlot(c);osd((i+1)+' · '+c.name+'\n'+info(c),5000,r.ok&&r.it.dur?r.off/(r.it.dur*60)*100:null)}}
 function av(){const v=$('#tv video');if(v){v.volume=VOL;v.muted=MUTE}}
 function act(a){
  if(NAT&&(a==='vp'||a==='vm')&&window.AndroidTV&&window.AndroidTV.nextAudio){window.AndroidTV.nextAudio();return}
@@ -245,6 +274,7 @@ function act(a){
  else if(a==='vp'||a==='vm'){VOL=Math.min(1,Math.max(0,VOL+(a==='vp'?.1:-.1)));MUTE=false;av();osd('🔊 '+Math.round(VOL*100)+'%')}
  else if(a==='fs')toggleFS($('#tvw'))}
 document.querySelectorAll('#rc button').forEach(b=>b.onclick=()=>act(b.dataset.a));
+const clk=()=>{const d=new Date();$('#clk').textContent=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')};clk();setInterval(clk,15000);
 let buf='',bt;
 function dig(d){buf=(buf+d).slice(-2);osd('CH '+buf);clearTimeout(bt);bt=setTimeout(()=>{const n=parseInt(buf);buf='';if(n>=1&&n<=S.channels.length)go(n-1);else osd('Δεν υπάρχει κανάλι')},1200)}
 for(let d=1;d<=10;d++)$('#np').append(el('button',{class:'b s',on:()=>dig(d%10)},String(d%10)));
@@ -673,7 +703,7 @@ function focusBack(i){if(i===null)return;const all=[...document.querySelectorAll
 (async()=>{try{const d=await IDB.get('S');if(d)S=d}catch(e){}
  S.covers=S.covers||{};S.items.forEach(i=>{if(i.local&&!/^S\d+E\d+( · |$)/.test(i.title))i.title=clean(i.title)});
  document.querySelectorAll('label.b').forEach(l=>l.tabIndex=0);
- if(location.hostname==='localhost'&&location.port==='8765'){ATV=true;window.ATVF=true;$('#rsc').style.display='';fetch('/api/connected').then(r=>{if(r.status===403){ERR('Ο server ήταν κλειδωμένος — απενεργοποιήθηκε το κλείδωμα');if(window.AndroidTV&&window.AndroidTV.unlock){window.AndroidTV.unlock();setTimeout(()=>fromServer(false),500)}}}).catch(()=>{});setTimeout(sendBackup,25000);$('#bf').parentNode.style.display='none';document.querySelectorAll('input,textarea').forEach(x=>{if(!/^(checkbox|file|hidden|radio|button)$/.test(x.type))x.readOnly=true});document.body.classList.add('atv');$('#tvw').classList.add('ffs');$('#fd').parentNode.addEventListener('click',e=>{e.preventDefault();window.AndroidTV&&window.AndroidTV.pickFolder()})}
+ if(location.hostname==='localhost'&&location.port==='8765'){ATV=true;window.ATVF=true;$('#rsc').style.display='';fetch('/api/connected').then(r=>{if(r.status===403){ERR('Ο server ήταν κλειδωμένος — απενεργοποιήθηκε το κλείδωμα');if(window.AndroidTV&&window.AndroidTV.unlock){window.AndroidTV.unlock();setTimeout(()=>fromServer(false),500)}}}).catch(()=>{});setTimeout(sendBackup,25000);$('#bf').parentNode.style.display='none';document.querySelectorAll('input,textarea').forEach(x=>{if(!/^(checkbox|file|hidden|radio|button)$/.test(x.type))x.readOnly=true});document.body.classList.add('atv');document.documentElement.classList.add('atv');$('#tvw').classList.add('ffs');$('#fd').parentNode.addEventListener('click',e=>{e.preventDefault();window.AndroidTV&&window.AndroidTV.pickFolder()})}
  if(ATV&&!S.items.length&&!S.channels.length&&window.AndroidTV&&window.AndroidTV.loadState){try{const t=window.AndroidTV.loadState();if(t){const d=JSON.parse(t);if(d&&(d.items||[]).length){S=d;S.covers=S.covers||{}}}}catch(e){}}
  $('#ld').value=S.lead||150;
  if(S.items.length){if(!S.lastBackup)S.lastBackup=Date.now();else if(Date.now()-S.lastBackup>14*864e5)setTimeout(()=>say('⏰ Πέρασαν πάνω από 14 μέρες από το τελευταίο backup — Προγράμματα → Εξαγωγή backup.'),1500)}
